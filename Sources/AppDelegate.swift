@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private var updateMenuItem: NSMenuItem?
     
     public func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -13,6 +14,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         NotchWindowController.shared.setup()
         IslandTouchBarController.shared.setup()
         NSApp.touchBar = IslandTouchBarController.shared.touchBar
+        
+        UpdateChecker.shared.onUpdateFound = { [weak self] version, _ in
+            self?.updateMenuItem?.title = "⚡ Скачать ICO \(version)..."
+        }
         
         // Auto check for GitHub releases in background
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -64,6 +69,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let updateItem = NSMenuItem(title: "Проверить обновления...", action: #selector(checkUpdates), keyEquivalent: "u")
         updateItem.target = self
         menu.addItem(updateItem)
+        self.updateMenuItem = updateItem
         
         let recenterItem = NSMenuItem(title: "Центрировать на экране", action: #selector(recenter), keyEquivalent: "r")
         recenterItem.target = self
@@ -79,7 +85,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc private func checkUpdates() {
-        UpdateChecker.shared.checkForUpdates(notifyIfUpToDate: true)
+        if UpdateChecker.shared.hasAvailableUpdate {
+            UpdateChecker.shared.openDownloadPage()
+        } else {
+            UpdateChecker.shared.checkForUpdates(notifyIfUpToDate: true)
+        }
     }
     
     @objc private func toggleIsland() {

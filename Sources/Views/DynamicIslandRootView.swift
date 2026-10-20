@@ -88,25 +88,32 @@ public struct DynamicIslandRootView: View {
                     
                     // Toast notification pill below island
                     if let msg = state.toastMessage {
-                        HStack(spacing: 7) {
-                            Image(systemName: state.toastIcon ?? "checkmark")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(Color(red: 0.66, green: 0.8, blue: 0.73))
-                            
-                            Text(msg)
-                                .font(.system(size: 10.5, weight: .medium))
-                                .foregroundColor(Color(red: 0.85, green: 0.85, blue: 0.89))
-                        }
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 8)
-                        .background(
-                            ZStack {
-                                Rectangle().fill(.ultraThinMaterial)
-                                Color(red: 0.08, green: 0.08, blue: 0.09).opacity(0.9)
+                        Button {
+                            if UpdateChecker.shared.hasAvailableUpdate {
+                                UpdateChecker.shared.openDownloadPage()
                             }
-                        )
-                        .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 6)
+                        } label: {
+                            HStack(spacing: 7) {
+                                Image(systemName: state.toastIcon ?? "checkmark")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color(red: 0.66, green: 0.8, blue: 0.73))
+                                
+                                Text(msg)
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .foregroundColor(Color(red: 0.85, green: 0.85, blue: 0.89))
+                            }
+                            .padding(.horizontal, 15)
+                            .padding(.vertical, 8)
+                            .background(
+                                ZStack {
+                                    Rectangle().fill(.ultraThinMaterial)
+                                    Color(red: 0.08, green: 0.08, blue: 0.09).opacity(0.9)
+                                }
+                            )
+                            .clipShape(Capsule())
+                            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 6)
+                        }
+                        .buttonStyle(.plain)
                         .offset(y: currentHeight + 14)
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
