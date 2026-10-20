@@ -126,6 +126,9 @@ public final class UniversalMediaController {
     
     private func processIncomingData(_ data: Data) {
         lineBuffer.append(data)
+        if lineBuffer.count > 500_000 {
+            lineBuffer.removeAll()
+        }
         
         let delimiter = UInt8(ascii: "\n")
         while let index = lineBuffer.firstIndex(of: delimiter) {

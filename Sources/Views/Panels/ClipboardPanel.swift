@@ -33,6 +33,26 @@ public struct ClipboardPanel: View {
                 Text("\(filteredCount) записей")
                     .font(.system(size: 10))
                     .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.43))
+                
+                if !state.clips.isEmpty {
+                    Button {
+                        state.clearAllClips()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 9.5))
+                            Text("Очистить")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundColor(Color(red: 0.85, green: 0.4, blue: 0.4))
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Очистить всю историю буфера")
+                }
             }
             .frame(height: 32)
             
@@ -55,9 +75,16 @@ public struct ClipboardPanel: View {
                         .frame(maxWidth: .infinity, minHeight: 160)
                     } else {
                         ForEach(filtered) { clip in
-                            RealClipRowView(clip: clip, isCopied: state.copiedClipId == clip.id) {
-                                state.copyClipToPasteboard(id: clip.id)
-                            }
+                            RealClipRowView(
+                                clip: clip,
+                                isCopied: state.copiedClipId == clip.id,
+                                onTap: {
+                                    state.copyClipToPasteboard(id: clip.id)
+                                },
+                                onDelete: {
+                                    state.removeClip(id: clip.id)
+                                }
+                            )
                         }
                     }
                 }
@@ -91,57 +118,79 @@ private struct RealClipRowView: View {
     let clip: RealClipItem
     let isCopied: Bool
     let onTap: () -> Void
+    let onDelete: () -> Void
     @State private var isHovered: Bool = false
     
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 11) {
-                // Type Icon Badge
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(badgeColor)
-                        .frame(width: 32, height: 32)
-                    
-                    Image(systemName: badgeIcon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(badgeIconColor)
-                }
-                
-                // Text Content
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(clip.text)
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Color(red: 0.87, green: 0.87, blue: 0.89))
-                        .lineLimit(1)
-                    
-                    Text(formattedTime(clip.date))
-                        .font(.system(size: 9))
-                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.43))
-                }
-                
-                Spacer()
-                
-                // Copy chip
-                HStack(spacing: 5) {
-                    Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11, weight: .medium))
-                    if isCopied {
-                        Text("Скопировано")
-                            .font(.system(size: 9.5, weight: .medium))
+        HStack(spacing: 11) {
+            // Main clickable content area
+            Button(action: onTap) {
+                HStack(spacing: 11) {
+                    // Type Icon Badge
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(badgeColor)
+                            .frame(width: 32, height: 32)
+                        
+                        Image(systemName: badgeIcon)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(badgeIconColor)
                     }
+                    
+                    // Text Content
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(clip.text)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Color(red: 0.87, green: 0.87, blue: 0.89))
+                            .lineLimit(1)
+                        
+                        Text(formattedTime(clip.date))
+                            .font(.system(size: 9))
+                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.43))
+                    }
+                    
+                    Spacer()
                 }
-                .foregroundColor(isCopied ? Color(red: 0.63, green: 0.83, blue: 0.7) : Color(red: 0.47, green: 0.47, blue: 0.5))
-                .padding(.horizontal, isCopied ? 10 : 8)
-                .frame(height: 29)
-                .background(isCopied ? Color(red: 0.12, green: 0.21, blue: 0.16) : Color.white.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: isCopied ? 11 : 9, style: .continuous))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 11)
-            .frame(height: 56)
-            .background(isHovered ? Color(red: 0.12, green: 0.12, blue: 0.13) : Color(red: 0.08, green: 0.08, blue: 0.09))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .buttonStyle(.plain)
+            
+            // Right actions: Copy status chip + Delete button
+            HStack(spacing: 6) {
+                Button(action: onTap) {
+                    HStack(spacing: 5) {
+                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 11, weight: .medium))
+                        if isCopied {
+                            Text("Скопировано")
+                                .font(.system(size: 9.5, weight: .medium))
+                        }
+                    }
+                    .foregroundColor(isCopied ? Color(red: 0.63, green: 0.83, blue: 0.7) : Color(red: 0.47, green: 0.47, blue: 0.5))
+                    .padding(.horizontal, isCopied ? 10 : 8)
+                    .frame(height: 29)
+                    .background(isCopied ? Color(red: 0.12, green: 0.21, blue: 0.16) : Color.white.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: isCopied ? 11 : 9, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                
+                // Delete button
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(isHovered ? Color(red: 0.85, green: 0.4, blue: 0.4) : Color.white.opacity(0.2))
+                        .frame(width: 28, height: 28)
+                        .background(isHovered ? Color.red.opacity(0.12) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help("Удалить запись из истории")
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 11)
+        .frame(height: 56)
+        .background(isHovered ? Color(red: 0.12, green: 0.12, blue: 0.13) : Color(red: 0.08, green: 0.08, blue: 0.09))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onHover { isHovered = $0 }
     }
     

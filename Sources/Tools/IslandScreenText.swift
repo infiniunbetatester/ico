@@ -270,7 +270,11 @@ final class IslandRegionPicker {
             NotificationCenter.default.removeObserver(screenObserver)
             self.screenObserver = nil
         }
-        windows.forEach { $0.orderOut(nil) }
+        windows.forEach {
+            $0.contentView = nil
+            $0.orderOut(nil)
+            $0.close()
+        }
         windows.removeAll()
         if let previousApplication, !previousApplication.isTerminated {
             previousApplication.activate(options: [])

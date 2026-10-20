@@ -324,6 +324,21 @@ public final class IslandState {
         }
     }
     
+    public func removeClip(id: UUID) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            clips.removeAll { $0.id == id }
+        }
+        notifyTouchBar()
+    }
+    
+    public func clearAllClips() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            clips.removeAll()
+        }
+        showToast("Буфер очищен", icon: "trash")
+        notifyTouchBar()
+    }
+    
     // MARK: - Running Apps
     
     public func refreshRunningApps() {
@@ -413,6 +428,7 @@ public final class IslandState {
         }
         
         visualizerTask = Task { @MainActor [weak self] in
+            let idleBars: [CGFloat] = [0.15, 0.15, 0.15, 0.15, 0.15]
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 120_000_000)
                 guard let self = self else { break }
@@ -420,9 +436,9 @@ public final class IslandState {
                     withAnimation(.easeInOut(duration: 0.11)) {
                         self.visualizerBars = (0..<5).map { _ in CGFloat.random(in: 0.25...1.0) }
                     }
-                } else {
+                } else if self.visualizerBars != idleBars {
                     withAnimation(.easeOut(duration: 0.2)) {
-                        self.visualizerBars = [0.15, 0.15, 0.15, 0.15, 0.15]
+                        self.visualizerBars = idleBars
                     }
                 }
             }
