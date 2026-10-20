@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Swift Package Manager & Build artifacts
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+
+# Application & Distribution artifacts
+*.app/
+*.dmg
+dmg_temp/
+
+# Environment / Keys
+.netrc
+.env
