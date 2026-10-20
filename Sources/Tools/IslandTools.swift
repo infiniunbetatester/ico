@@ -4,6 +4,7 @@ import Observation
 
 public enum IslandTool: String, CaseIterable, Identifiable {
     case text
+    case qr
     case timer
     case mixer
 
@@ -11,6 +12,7 @@ public enum IslandTool: String, CaseIterable, Identifiable {
     public var title: String {
         switch self {
         case .text: "Текст"
+        case .qr: "QR-код"
         case .timer: "Таймер"
         case .mixer: "Микшер"
         }
@@ -18,6 +20,7 @@ public enum IslandTool: String, CaseIterable, Identifiable {
     public var icon: String {
         switch self {
         case .text: "text.viewfinder"
+        case .qr: "qrcode"
         case .timer: "timer"
         case .mixer: "speaker.wave.2"
         }
@@ -40,6 +43,7 @@ public final class IslandTools {
     public var active: IslandTool?
     public let countdown = IslandCountdown()
     public let ocr = IslandScreenText()
+    public let qr = IslandQRCode()
     public let mixer = IslandAppMixer()
 
     @ObservationIgnored private weak var island: IslandState?
@@ -55,6 +59,9 @@ public final class IslandTools {
         }
         ocr.onCompleted = { [weak self] in
             self?.show(.text)
+        }
+        qr.onCompleted = { [weak self] in
+            self?.show(.qr)
         }
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -114,6 +121,11 @@ public final class IslandTools {
     public func captureText() {
         show(.text)
         ocr.capture()
+    }
+
+    public func scanQRCode() {
+        show(.qr)
+        qr.scan()
     }
 
     public func startTimer(seconds: TimeInterval) {

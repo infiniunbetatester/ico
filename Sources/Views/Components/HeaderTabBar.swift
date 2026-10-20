@@ -83,6 +83,15 @@ public struct HeaderTabBar: View {
                     }
 
                     Button {
+                        tools.show(.qr)
+                    } label: {
+                        Label(
+                            "QR-код (сканер и генератор)",
+                            systemImage: "qrcode"
+                        )
+                    }
+
+                    Button {
                         tools.show(.timer)
                     } label: {
                         Label("Таймер", systemImage: "timer")

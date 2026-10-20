@@ -1,0 +1,123 @@
+name: Build & Release Universal DMG
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # Позволяет запускать сборку вручную из вкладки Actions
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Universal macOS App
+    runs-on: macos-14 # Mac на базе Apple Silicon с полным набором инструментов
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build Universal Binary (arm64 + x86_64)
+        run: |
+          echo "🔨 Компиляция Universal Binary под Intel и Apple Silicon..."
+          swift build -c release --arch arm64 --arch x86_64
+
+      - name: Package ICO.app
+        run: |
+          APP_DIR="ICO.app"
+          CONTENTS_DIR="$APP_DIR/Contents"
+          MACOS_DIR="$CONTENTS_DIR/MacOS"
+          RESOURCES_DIR="$CONTENTS_DIR/Resources"
+          FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
+
+          mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
+
+          # Копируем скомпилированный universal бинарник
+          cp ".build/apple/Products/Release/ICO" "$MACOS_DIR/ICO"
+
+          # Проверяем архитектуры в логе сборки
+          file "$MACOS_DIR/ICO"
+
+          if [ -d "Resources" ]; then
+              cp -R Resources/* "$RESOURCES_DIR/" 2>/dev/null || true
+          fi
+
+          if [ -d "Frameworks" ]; then
+              cp -R Frameworks/* "$FRAMEWORKS_DIR/" 2>/dev/null || true
+          fi
+
+          VERSION="${GITHUB_REF_NAME:-1.0}"
+          VERSION="${VERSION#v}"
+
+          cat << EOF > "$CONTENTS_DIR/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>ICO</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.ico.app</string>
+              <key>CFBundleName</key>
+              <string>ICO</string>
+              <key>CFBundleDisplayName</key>
+              <string>ICO</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>$VERSION</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
+              <key>CFBundleIconName</key>
+              <string>AppIcon</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>14.0</string>
+              <key>LSUIElement</key>
+              <true/>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSSupportsAutomaticGraphicsSwitching</key>
+              <true/>
+              <key>NSAudioCaptureUsageDescription</key>
+              <string>ICO требуется доступ к аудио для регулировки громкости отдельных приложений.</string>
+              <key>NSScreenCaptureUsageDescription</key>
+              <string>ICO требуется доступ к экрану для оптического распознавания текста (OCR).</string>
+              <key>NSMicrophoneUsageDescription</key>
+              <string>ICO требуется доступ к аудиосистеме для микшера громкости.</string>
+              <key>NSAppleEventsUsageDescription</key>
+              <string>ICO требуется доступ к AppleEvents для интеграции с медиаплеерами.</string>
+          </dict>
+          </plist>
+          EOF
+
+          codesign --force --deep --sign - "$APP_DIR"
+
+      - name: Create DMG
+        run: |
+          DMG_NAME="ICO.dmg"
+          TEMP_DIR="dmg_temp"
+          rm -rf "$TEMP_DIR" "$DMG_NAME"
+          mkdir -p "$TEMP_DIR"
+          cp -R "ICO.app" "$TEMP_DIR/"
+          ln -s /Applications "$TEMP_DIR/Applications"
+          hdiutil create -volname "ICO" -srcfolder "$TEMP_DIR" -ov -format UDZO "$DMG_NAME"
+          rm -rf "$TEMP_DIR"
+
+      - name: Create GitHub Release and Upload DMG
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ICO.dmg
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifact (if manual run)
+        uses: actions/upload-artifact@v4
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        with:
+          name: ICO-Universal-DMG
+          path: ICO.dmg

@@ -12,6 +12,8 @@ public struct IslandToolsPanel: View {
             switch tools.active {
             case .text:
                 IslandTextPanel(model: tools.ocr)
+            case .qr:
+                IslandQRPanel(model: tools.qr)
             case .timer:
                 IslandTimerPanel(tools: tools)
             case .mixer:
@@ -443,5 +445,275 @@ private struct IslandMixerPanel: View {
                 style: .continuous
             )
         )
+    }
+}
+
+private struct IslandQRPanel: View {
+    @Bindable var model: IslandQRCode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            // Header
+            HStack {
+                Text("QR-код")
+                    .font(.system(size: 15, weight: .semibold))
+
+                Spacer()
+
+                // Mode switcher (Generator / Scanner)
+                HStack(spacing: 2) {
+                    ForEach(IslandQRCode.Mode.allCases) { mode in
+                        Button {
+                            withAnimation(IslandToolsStyle.spring) {
+                                model.mode = mode
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: mode == .generate ? "qrcode" : "qrcode.viewfinder")
+                                    .font(.system(size: 10))
+                                Text(mode.rawValue)
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .foregroundStyle(model.mode == mode ? Color.black : Color.white.opacity(0.7))
+                            .background(model.mode == mode ? Color.white : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(2)
+                .background(IslandToolsStyle.cell)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            if model.mode == .generate {
+                generatorView
+            } else {
+                scannerView
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var generatorView: some View {
+        HStack(alignment: .top, spacing: 16) {
+            // Left: Input and tools
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(IslandToolsStyle.cell)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextEditor(text: $model.inputText)
+                            .font(.system(size: 12.5))
+                            .lineSpacing(2)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 110)
+
+                        HStack {
+                            Text("\(model.inputText.count) симв.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(IslandToolsStyle.secondary)
+
+                            Spacer()
+
+                            Button {
+                                model.pasteClipboardText()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc.on.clipboard")
+                                        .font(.system(size: 10))
+                                    Text("Вставить из буфера")
+                                        .font(.system(size: 10.5, weight: .medium))
+                                }
+                                .padding(.horizontal, 8)
+                                .frame(height: 22)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Color.white.opacity(0.8))
+                        }
+                    }
+                    .padding(12)
+                }
+                .frame(maxHeight: 160)
+
+                HStack(spacing: 8) {
+                    Button {
+                        model.copyQRImage()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.didCopy ? "checkmark" : "doc.on.doc.fill")
+                                .font(.system(size: 11))
+                            Text(model.didCopy ? "Скопировано!" : "Скопировать картинку")
+                        }
+                    }
+                    .buttonStyle(ToolActionStyle(prominent: true))
+
+                    Button {
+                        model.saveQRPNG()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 11))
+                            Text("Сохранить PNG")
+                        }
+                    }
+                    .buttonStyle(ToolActionStyle())
+                }
+            }
+
+            // Right: QR Preview
+            VStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.white)
+                        .frame(width: 176, height: 176)
+                        .shadow(color: Color.black.opacity(0.35), radius: 10, y: 5)
+
+                    if let qrImage = model.generateImage(from: model.inputText, size: 154) {
+                        Image(nsImage: qrImage)
+                            .interpolation(.none)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 154, height: 154)
+                    } else {
+                        VStack(spacing: 6) {
+                            Image(systemName: "qrcode")
+                                .font(.system(size: 32, weight: .light))
+                                .foregroundStyle(Color.gray)
+                            Text("Введите текст")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.gray)
+                        }
+                    }
+                }
+
+                Text("Наведите камеру смартфона")
+                    .font(.system(size: 10))
+                    .foregroundStyle(IslandToolsStyle.secondary)
+            }
+            .frame(width: 190)
+        }
+    }
+
+    @ViewBuilder
+    private var scannerView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(IslandToolsStyle.cell)
+
+                if model.isBusy {
+                    VStack(spacing: 10) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(model.isSelecting ? "Выделите QR-код на экране рамкой" : "Распознаём QR-код…")
+                            .font(.system(size: 12))
+                            .foregroundStyle(IslandToolsStyle.secondary)
+                    }
+                } else if model.scannedResult.isEmpty {
+                    VStack(spacing: 11) {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                        Text("Сканирование QR-кода с экрана")
+                            .font(.system(size: 13, weight: .medium))
+                        Text("Нажмите кнопку ниже и выделите область с QR-кодом")
+                            .font(.system(size: 11))
+                            .foregroundStyle(IslandToolsStyle.secondary)
+
+                        if let error = model.error {
+                            Text(error)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.red.opacity(0.85))
+                                .padding(.top, 4)
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Label(
+                                model.isScannedURL ? "Веб-ссылка" : "Текст",
+                                systemImage: model.isScannedURL ? "link" : "text.alignleft"
+                            )
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(IslandToolsStyle.green)
+
+                            Spacer()
+
+                            if model.didCopy {
+                                Text("Скопировано в буфер")
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(IslandToolsStyle.green)
+                            }
+                        }
+
+                        ScrollView {
+                            Text(model.scannedResult)
+                                .font(.system(size: 12.5, design: .monospaced))
+                                .foregroundStyle(Color.white.opacity(0.95))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding(14)
+                }
+            }
+            .frame(height: 165)
+
+            HStack(spacing: 8) {
+                Button {
+                    model.scan()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 11))
+                        Text(model.scannedResult.isEmpty ? "Выделить QR-код" : "Сканировать ещё")
+                    }
+                }
+                .buttonStyle(ToolActionStyle(prominent: model.scannedResult.isEmpty))
+
+                if !model.scannedResult.isEmpty {
+                    if model.isScannedURL {
+                        Button {
+                            model.openScannedURL()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "safari")
+                                    .font(.system(size: 11))
+                                Text("Открыть в браузере")
+                            }
+                        }
+                        .buttonStyle(ToolActionStyle(prominent: true))
+                    }
+
+                    Button {
+                        model.copyScannedResult()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.didCopy ? "checkmark" : "doc.on.clipboard")
+                                .font(.system(size: 11))
+                            Text(model.didCopy ? "Скопировано!" : "Копировать")
+                        }
+                    }
+                    .buttonStyle(ToolActionStyle())
+
+                    Button {
+                        model.transferScannedToGenerator()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.right.circle")
+                                .font(.system(size: 11))
+                            Text("В генератор")
+                        }
+                    }
+                    .buttonStyle(ToolActionStyle())
+                }
+            }
+        }
     }
 }

@@ -157,13 +157,13 @@ public final class IslandScreenText {
 }
 
 @MainActor
-private final class IslandRegionPanel: NSPanel {
+final class IslandRegionPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
 @MainActor
-private final class IslandRegionPicker {
+final class IslandRegionPicker {
     struct Region {
         let displayID: CGDirectDisplayID
         let sourceRect: CGRect
@@ -281,7 +281,7 @@ private final class IslandRegionPicker {
 }
 
 @MainActor
-private final class IslandRegionView: NSView {
+final class IslandRegionView: NSView {
     var onSelected: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
 
