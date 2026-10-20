@@ -12,11 +12,16 @@ permissions:
 jobs:
   build:
     name: Build Universal macOS App
-    runs-on: macos-14 # Mac на базе Apple Silicon с полным набором инструментов
+    runs-on: macos-15
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Select Xcode 16 (Swift 6.0)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '^16'
 
       - name: Build Universal Binary (arm64 + x86_64)
         run: |
