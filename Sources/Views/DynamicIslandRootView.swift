@@ -63,6 +63,8 @@ public struct DynamicIslandRootView: View {
                                             ClipboardPanel(state: state)
                                         case .apps:
                                             AppsPanel(state: state)
+                                        case .widgets:
+                                            WidgetsPanel(state: state)
                                         }
                                     }
                                     .transition(

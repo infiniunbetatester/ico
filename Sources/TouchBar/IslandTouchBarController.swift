@@ -129,9 +129,10 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
             let filesImg = NSImage(systemSymbolName: "tray.fill", accessibilityDescription: "Файлы")?.withSymbolConfiguration(config) ?? NSImage()
             let clipImg = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Буфер")?.withSymbolConfiguration(config) ?? NSImage()
             let appsImg = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: "Окна")?.withSymbolConfiguration(config) ?? NSImage()
+            let widgetImg = NSImage(systemSymbolName: "puzzlepiece.extension.fill", accessibilityDescription: "Виджеты")?.withSymbolConfiguration(config) ?? NSImage()
             
             let segmented = NSSegmentedControl(
-                images: [musicImg, filesImg, clipImg, appsImg],
+                images: [musicImg, filesImg, clipImg, appsImg, widgetImg],
                 trackingMode: .selectOne,
                 target: self,
                 action: #selector(tabSegmentChanged(_:))
@@ -165,6 +166,7 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
         case .files: return 1
         case .clipboard: return 2
         case .apps: return 3
+        case .widgets: return 4
         }
     }
     
@@ -177,6 +179,7 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
             case 1: state.setMode(.files)
             case 2: state.setMode(.clipboard)
             case 3: state.setMode(.apps)
+            case 4: state.setMode(.widgets)
             default: break
             }
         }
@@ -270,9 +273,36 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
             
         case .music:
             buildMusicButtons(into: stack, state: state)
+            
+        case .widgets:
+            buildWidgetsButtons(into: stack, state: state)
         }
         
         stack.layoutSubtreeIfNeeded()
+    }
+    
+    private func buildWidgetsButtons(into stack: NSStackView, state: IslandState) {
+        let manager = WidgetManager.shared
+        for widget in manager.installedWidgets.prefix(3) {
+            let isCurrent = manager.activeWidgetId == widget.id
+            let btn = makeTouchBarButton(
+                title: widget.name,
+                systemImage: widget.iconName,
+                action: #selector(widgetButtonTapped(_:))
+            )
+            btn.identifier = NSUserInterfaceItemIdentifier(widget.id)
+            if isCurrent {
+                btn.bezelColor = NSColor.systemBlue.withAlphaComponent(0.4)
+            }
+            stack.addArrangedSubview(btn)
+        }
+    }
+    
+    @objc private func widgetButtonTapped(_ sender: NSButton) {
+        if let id = sender.identifier?.rawValue {
+            WidgetManager.shared.activeWidgetId = id
+            rebuildContextViews(state: IslandState.shared)
+        }
     }
     
     // MARK: - Native Touch Bar Button Factory (Apple HIG Spec)

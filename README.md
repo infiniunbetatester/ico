@@ -53,9 +53,15 @@ ICO bridges the gap between hardware and software on macOS by expanding the disp
 * **Per-App Volume Mixer:** Granular audio gain adjustment for individual running processes without altering the global macOS master volume.
 * **Precision Countdown Timer:** Compact circular countdown with progress badges, ambient sound alerts, and island expansion upon completion.
 
+### Extensible HTML/JS Widgets
+* **Native WebKit Sandbox:** Drop any HTML, CSS, and JavaScript folder into `~/.ico/widgets/` to run custom widgets directly inside the island.
+* **JavaScript Bridge (`window.ico`):** Full native communication for notifications (`ico.toast`), clipboard access (`ico.copy`), panel controls (`ico.close`), and external links (`ico.openURL`).
+* **Built-in Starter Template:** Bundled with a live, real-time cryptocurrency ticker (BTC, ETH, TON, SOL) querying Binance APIs with zero configuration.
+* **Instant Access:** First-class island tab, Touch Bar switcher, and one-click Finder folder access.
+
 ### Workspace & Data Management
 * **Temporary File Shelf:** Drag-and-drop landing strip at the upper screen boundary for staging files, images, and folders between spaces and full-screen applications.
-* **Clipboard History:** Persistent clipboard stack with keyword search, timestamp tracking, and instant re-insertion.
+* **Clipboard History:** Persistent clipboard stack with item deletion, full history clearing, keyword search, and instant re-insertion.
 * **Application Hub:** Fast overview of running GUI applications with window focus switching.
 
 ### Display & Hardware Adaptation

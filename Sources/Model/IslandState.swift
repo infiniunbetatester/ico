@@ -7,6 +7,7 @@ public enum IslandMode: String, CaseIterable, Identifiable, Sendable {
     case files = "files"
     case clipboard = "clipboard"
     case apps = "apps"
+    case widgets = "widgets"
     
     public var id: String { rawValue }
     
@@ -16,6 +17,7 @@ public enum IslandMode: String, CaseIterable, Identifiable, Sendable {
         case .files: return "Файлы"
         case .clipboard: return "Буфер"
         case .apps: return "Приложения"
+        case .widgets: return "Виджеты"
         }
     }
     
@@ -25,6 +27,7 @@ public enum IslandMode: String, CaseIterable, Identifiable, Sendable {
         case .files: return "tray.fill"
         case .clipboard: return "doc.on.clipboard"
         case .apps: return "square.grid.2x2"
+        case .widgets: return "puzzlepiece.extension.fill"
         }
     }
     
@@ -34,6 +37,7 @@ public enum IslandMode: String, CaseIterable, Identifiable, Sendable {
         case .files: return (640, 356, 30)
         case .clipboard: return (604, 392, 30)
         case .apps: return (708, 408, 32)
+        case .widgets: return (640, 356, 30)
         }
     }
 }
