@@ -18,7 +18,7 @@ public final class UpdateChecker {
     public static let shared = UpdateChecker()
     
     // GitHub repository: "owner/repo" (e.g. "user/ico")
-    public var repoSlug: String = "your-username/ico" // Укажите ваш GitHub 'username/repo'
+    public var repoSlug: String = "infiniunbetatester/ico"
     public var availableUpdateUrl: URL?
     public var latestVersionString: String?
     
