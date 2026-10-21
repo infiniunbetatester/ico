@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import WebKit
-import UserNotifications
 
 public struct WidgetWebView: NSViewRepresentable {
     let widgetId: String
@@ -198,17 +197,16 @@ public struct WidgetWebView: NSViewRepresentable {
         }
         
         private func sendSystemNotification(title: String, body: String) {
-            let content = UNMutableNotificationContent()
-            content.title = title
-            content.body = body
-            content.sound = .default
+            let cleanTitle = title.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            let cleanBody = body.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            let scriptText = "display notification \"\(cleanBody)\" with title \"\(cleanTitle)\" sound name \"Glass\""
             
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: nil
-            )
-            UNUserNotificationCenter.current().add(request)
+            DispatchQueue.global(qos: .userInitiated).async {
+                var error: NSDictionary?
+                if let script = NSAppleScript(source: scriptText) {
+                    script.executeAndReturnError(&error)
+                }
+            }
             NSSound(named: "Glass")?.play()
         }
         
