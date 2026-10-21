@@ -107,6 +107,19 @@ public struct WidgetWebView: NSViewRepresentable {
                 });
             });
         },
+        measure: function() {
+            return new Promise(function(resolve, reject) {
+                var reqId = 'req_' + Math.random().toString(36).substr(2, 9);
+                window._icoCallbacks[reqId] = {
+                    resolve: resolve,
+                    reject: reject
+                };
+                window.webkit.messageHandlers.icoBridge.postMessage({
+                    action: 'measure',
+                    reqId: reqId
+                });
+            });
+        },
         onCollapse: function(callback) {
             window.addEventListener('ico:collapse', callback);
         },
@@ -189,6 +202,24 @@ public struct WidgetWebView: NSViewRepresentable {
                         headers: headers,
                         body: reqBody
                     )
+                    
+                case "measure":
+                    guard let reqId = body["reqId"] as? String else { return }
+                    let wv = message.webView
+                    Task { @MainActor in
+                        let measurement = await IslandScreenRuler.shared.measure()
+                        guard let wv else { return }
+                        if let measurement = measurement {
+                            if let jsonData = try? JSONSerialization.data(withJSONObject: measurement.dictionary),
+                               let jsonString = String(data: jsonData, encoding: .utf8) {
+                                wv.evaluateJavaScript("window._icoResolve('\(reqId)', \(jsonString), null);", completionHandler: nil)
+                            } else {
+                                wv.evaluateJavaScript("window._icoResolve('\(reqId)', null, null);", completionHandler: nil)
+                            }
+                        } else {
+                            wv.evaluateJavaScript("window._icoResolve('\(reqId)', null, null);", completionHandler: nil)
+                        }
+                    }
                     
                 default:
                     break

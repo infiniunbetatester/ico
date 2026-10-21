@@ -112,6 +112,7 @@ Every widget gets access to the native `window.ico` bridge. Timers and state **p
 | `window.ico.storage.set(key, val)` | Persistent storage per widget ID (never erased on reboot) | `window.ico.storage.set('theme', 'dark')` |
 | `window.ico.storage.get(key, default)` | Reads persisted key value | `const val = window.ico.storage.get('theme', 'dark')` |
 | `window.ico.fetch(url, options)` | Native HTTP request proxy **without CORS restrictions** | `const res = await window.ico.fetch('https://api.binance.com/...')` |
+| `window.ico.measure()` | Interactive full-screen pixel ruler measuring width, height, diagonal, and aspect ratio | `const res = await window.ico.measure()` |
 | `window.ico.onCollapse(fn)` | Notch collapse lifecycle hook (pause heavy canvas/intervals to save CPU) | `window.ico.onCollapse(() => pause())` |
 | `window.ico.onExpand(fn)` | Notch expand lifecycle hook | `window.ico.onExpand(() => resume())` |
 
@@ -163,6 +164,7 @@ Here are some great widget concepts you can create or install in 1 click from th
 
 | Widget | Concept & Use Case | Tech / API |
 |---|---|---|
+| 📐 **Pixel Screen Ruler** | Fullscreen pixel measurement, diagonal, aspect ratio, and CSS/Tailwind export | Native `window.ico.measure()` |
 | 🪙 **Crypto / Stock Ticker** | Live Bitcoin, Ethereum, Solana, and S&P 500 quotes with price change badges | Binance WebSocket / CoinGecko / Yahoo Finance |
 | 🌤 **Minimalist Weather** | Current weather, precipitation radar, and hourly forecast | Open-Meteo / wttr.in (No API key needed) |
 | 📝 **Quick Scratchpad** | Sticky memo pad for temporary text, phone numbers, and code snippets | `localStorage` + `window.ico.copy` |

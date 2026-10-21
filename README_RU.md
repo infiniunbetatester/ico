@@ -112,6 +112,7 @@ ICO переносит опыт Dynamic Island и стильной челки н
 | `window.ico.storage.set(key, val)` | Персистентное сохранение настроек виджета (не стирается) | `window.ico.storage.set('timer', 1500)` |
 | `window.ico.storage.get(key, default)` | Получить сохраненное значение | `const val = window.ico.storage.get('timer', 0)` |
 | `window.ico.fetch(url, options)` | Нативный сетевой запрос **без CORS-ограничений** | `const res = await window.ico.fetch('https://api.binance.com/...')` |
+| `window.ico.measure()` | Интерактивный замер области/пикселей на экране с определением WxH, диагонали и пропорций | `const res = await window.ico.measure()` |
 | `window.ico.onCollapse(fn)` | Хук сворачивания челки (пауза тяжелых анимаций для экономии CPU) | `window.ico.onCollapse(() => stopAnim())` |
 | `window.ico.onExpand(fn)` | Хук раскрытия челки | `window.ico.onExpand(() => resumeAnim())` |
 
@@ -163,6 +164,7 @@ ICO переносит опыт Dynamic Island и стильной челки н
 
 | Виджет | Назначение | Технологии / API |
 |---|---|---|
+| 📐 **Экранная линейка** | Замер пикселей на экране, диагонали, соотношения сторон и экспорт в CSS/Tailwind | Нативный `window.ico.measure()` |
 | 🪙 **Курсы криптовалют и акций** | Живые котировки BTC, ETH, TON, SOL с Binance в реальном времени | Binance WebSocket / CoinGecko |
 | 🌤 **Минималистичная погода** | Температура, осадки, влажность и ветер за окном | Open-Meteo / wttr.in (без API-ключей) |
 | 📝 **Быстрый блокнот (Scratchpad)** | Поле для заметок, ссылок и временного текста с автосохранением | `localStorage` + `window.ico.copy` |

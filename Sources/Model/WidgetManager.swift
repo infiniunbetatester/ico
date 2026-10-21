@@ -343,6 +343,23 @@ public final class WidgetManager {
                   "height": 260
                 }
                 """
+            ),
+            StoreWidget(
+                id: "screen-ruler",
+                name: "Экранная линейка",
+                iconName: "ruler.fill",
+                description: "Интерактивный замер пикселей на экране с определением размеров, диагонали, соотношения сторон и экспортом в CSS.",
+                category: "Инструменты",
+                defaultHeight: 270,
+                htmlContent: screenRulerWidgetHTML,
+                widgetJson: """
+                {
+                  "name": "Экранная линейка",
+                  "icon": "ruler.fill",
+                  "description": "Замер размеров элементов на экране в пикселях",
+                  "height": 270
+                }
+                """
             )
         ]
     }
@@ -733,6 +750,215 @@ public final class WidgetManager {
             }
             updateClocks();
             setInterval(updateClocks, 1000);
+          </script>
+        </body>
+        </html>
+        """
+    }
+    
+    private var screenRulerWidgetHTML: String {
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; user-select: none; }
+            body { background: transparent; color: #fff; padding: 14px 18px; }
+            .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+            .title-group { display: flex; align-items: center; gap: 8px; }
+            .title { font-size: 13.5px; font-weight: 600; color: #fff; }
+            .sub { font-size: 10px; color: rgba(255,255,255,0.45); }
+            .measure-btn {
+              background: linear-gradient(135deg, #00d2ff 0%, #007aff 100%);
+              color: #fff;
+              border: none;
+              border-radius: 9px;
+              padding: 7px 15px;
+              font-size: 11.5px;
+              font-weight: 600;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+              transition: all 0.15s ease;
+            }
+            .measure-btn:hover { transform: scale(1.02); filter: brightness(1.1); }
+            .measure-btn:active { transform: scale(0.97); }
+            .main-card {
+              background: rgba(255,255,255,0.04);
+              border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 14px;
+              padding: 13px 15px;
+              min-height: 118px;
+            }
+            .hero-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+            .hero-size { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; color: #fff; }
+            .hero-unit { font-size: 12.5px; font-weight: 500; color: #00d2ff; margin-left: 4px; }
+            .chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 11px; }
+            .chip {
+              background: rgba(255,255,255,0.06);
+              border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 7px;
+              padding: 4px 8px;
+              font-size: 10.5px;
+              font-variant-numeric: tabular-nums;
+              color: rgba(255,255,255,0.85);
+            }
+            .chip b { color: #00d2ff; font-weight: 600; margin-right: 3px; }
+            .actions-row { display: flex; gap: 6px; flex-wrap: wrap; }
+            .act-btn {
+              background: rgba(255,255,255,0.07);
+              border: 1px solid rgba(255,255,255,0.09);
+              border-radius: 7px;
+              padding: 5px 10px;
+              font-size: 10.5px;
+              font-weight: 500;
+              color: rgba(255,255,255,0.9);
+              cursor: pointer;
+              transition: all 0.15s ease;
+            }
+            .act-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+            .act-btn:active { transform: scale(0.96); }
+            .empty-state {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              padding: 18px 10px;
+              color: rgba(255,255,255,0.5);
+            }
+            .empty-state .icon { font-size: 24px; margin-bottom: 6px; opacity: 0.8; }
+            .empty-state .txt { font-size: 11.5px; font-weight: 500; margin-bottom: 2px; color: rgba(255,255,255,0.7); }
+            .empty-state .sub { font-size: 10px; opacity: 0.6; }
+            .history-section { margin-top: 10px; }
+            .history-title { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
+            .history-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+            .history-item {
+              background: rgba(255,255,255,0.05);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-radius: 7px;
+              padding: 4px 9px;
+              font-size: 10.5px;
+              font-variant-numeric: tabular-nums;
+              color: rgba(255,255,255,0.75);
+              cursor: pointer;
+              white-space: nowrap;
+              transition: all 0.15s;
+            }
+            .history-item:hover { background: rgba(0,210,255,0.15); border-color: rgba(0,210,255,0.3); color: #fff; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title-group">
+              <span style="font-size: 16px;">📐</span>
+              <div>
+                <div class="title">Экранная линейка</div>
+                <div class="sub">Замер пикселей на экране · Esc для отмены</div>
+              </div>
+            </div>
+            <button class="measure-btn" onclick="startMeasure()">
+              <span>📐</span>
+              <span>Замерить область</span>
+            </button>
+          </div>
+
+          <div class="main-card" id="card-content">
+            <div class="empty-state">
+              <div class="icon">📏</div>
+              <div class="txt">Замер ещё не выполнялся</div>
+              <div class="sub">Нажмите «Замерить область» и потяните рамку на экране</div>
+            </div>
+          </div>
+
+          <div class="history-section" id="history-section" style="display: none;">
+            <div class="history-title">Недавние замеры</div>
+            <div class="history-list" id="history-list"></div>
+          </div>
+
+          <script>
+            let current = null;
+            let history = [];
+
+            try {
+              history = window.ico.storage.get('ruler_history', []) || [];
+            } catch(e) {
+              history = [];
+            }
+
+            if (history.length > 0) {
+              setCurrent(history[0], false);
+              renderHistory();
+            }
+
+            async function startMeasure() {
+              try {
+                const res = await window.ico.measure();
+                if (!res) return;
+                setCurrent(res, true);
+                saveToHistory(res);
+                window.ico.toast(res.width + ' × ' + res.height + ' px', 'ruler.fill');
+                window.ico.sound('Glass');
+              } catch(e) {
+                console.error(e);
+              }
+            }
+
+            function setCurrent(data, animate) {
+              current = data;
+              const card = document.getElementById('card-content');
+              card.innerHTML = `
+                <div class="hero-row">
+                  <div>
+                    <span class="hero-size">${Math.round(data.width)} × ${Math.round(data.height)}</span>
+                    <span class="hero-unit">px</span>
+                  </div>
+                </div>
+                <div class="chips-row">
+                  <div class="chip"><b>Диагональ:</b> ${Math.round(data.diagonal)} px</div>
+                  <div class="chip"><b>Пропорции:</b> ${data.aspectRatio}</div>
+                  <div class="chip"><b>Retina (@${data.scale}x):</b> ${Math.round(data.retinaWidth)} × ${Math.round(data.retinaHeight)} px</div>
+                  <div class="chip"><b>Позиция:</b> X:${Math.round(data.x)} Y:${Math.round(data.y)}</div>
+                </div>
+                <div class="actions-row">
+                  <button class="act-btn" onclick="copyValue('${Math.round(data.width)}x${Math.round(data.height)}', '${Math.round(data.width)}×${Math.round(data.height)}')">📋 WxH</button>
+                  <button class="act-btn" onclick="copyValue('width: ${Math.round(data.width)}px; height: ${Math.round(data.height)}px;', 'CSS')">📋 CSS</button>
+                  <button class="act-btn" onclick="copyValue('w-[${Math.round(data.width)}px] h-[${Math.round(data.height)}px]', 'Tailwind')">📋 Tailwind</button>
+                  <button class="act-btn" onclick="copyValue(JSON.stringify(current, null, 2), 'JSON')">📋 JSON</button>
+                </div>
+              `;
+            }
+
+            function copyValue(val, label) {
+              window.ico.copy(val);
+              window.ico.toast('Скопировано: ' + label, 'checkmark');
+            }
+
+            function saveToHistory(item) {
+              history = [item, ...history.filter(h => !(h.width === item.width && h.height === item.height))].slice(0, 6);
+              try {
+                window.ico.storage.set('ruler_history', history);
+              } catch(e){}
+              renderHistory();
+            }
+
+            function renderHistory() {
+              const sec = document.getElementById('history-section');
+              const list = document.getElementById('history-list');
+              if (!history || history.length === 0) {
+                sec.style.display = 'none';
+                return;
+              }
+              sec.style.display = 'block';
+              list.innerHTML = history.map((h, i) => `
+                <div class="history-item" onclick="setCurrent(history[${i}], false)">
+                  ${Math.round(h.width)} × ${Math.round(h.height)} px <span style="opacity: 0.5;">(${h.aspectRatio})</span>
+                </div>
+              `).join('');
+            }
           </script>
         </body>
         </html>
