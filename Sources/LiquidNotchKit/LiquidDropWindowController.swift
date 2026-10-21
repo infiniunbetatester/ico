@@ -105,7 +105,6 @@ import SwiftUI
     }
 
     private func observeMouse(_ event: NSEvent) {
-        if event.type == .leftMouseDragged { sawDragMotion = true }
         if event.type == .leftMouseDown && !wasButtonDown {
             downPoint = NSEvent.mouseLocation
             sawDragMotion = false
@@ -128,9 +127,9 @@ import SwiftUI
                 downPoint = screenPoint
                 releasedAt = nil
             }
-            if hypot(screenPoint.x - downPoint.x, screenPoint.y - downPoint.y) >= 4 { sawDragMotion = true }
-            let isDragging = sawDragMotion || actualNative
-            let fileCandidate = inField && hasFiles && isDragging
+            if hypot(screenPoint.x - downPoint.x, screenPoint.y - downPoint.y) >= 8 { sawDragMotion = true }
+            let freshDragBoard = dragPasteboard.changeCount != lastIdleChangeCount
+            let fileCandidate = inField && ((freshDragBoard && sawDragMotion && hasFiles) || actualNative)
             if !suppressUntilMouseUp && configuration.canAcceptDrops() && fileCandidate {
                 beginActivity()
                 host.routesExternalDrag = true
