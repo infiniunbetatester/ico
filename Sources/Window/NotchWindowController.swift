@@ -25,6 +25,7 @@ public final class NotchWindowController {
         
         panel.contentView = hostingView
         panel.setFrame(initialRect, display: true)
+        panel.level = IslandState.shared.isAlwaysOnTop ? (.mainMenu + 1) : .normal
         panel.orderFrontRegardless()
         
         self.panel = panel
@@ -132,5 +133,13 @@ public final class NotchWindowController {
         let x = screenFrame.midX - (fixedCanvasSize.width / 2.0)
         let y = screenFrame.maxY - fixedCanvasSize.height
         return NSRect(x: x, y: y, width: fixedCanvasSize.width, height: fixedCanvasSize.height)
+    }
+    
+    public func updateWindowLevel(alwaysOnTop: Bool) {
+        guard let panel else { return }
+        panel.level = alwaysOnTop ? (.mainMenu + 1) : .normal
+        if alwaysOnTop {
+            panel.orderFrontRegardless()
+        }
     }
 }

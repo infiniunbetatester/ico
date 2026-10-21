@@ -12,11 +12,15 @@
 
 <br/>
 
+**English** • [Русский](README_RU.md)
+
+<br/>
+
 *ICO transforms the MacBook hardware notch and menu bar into an interactive, context-aware command center. Engineered natively for macOS with SwiftUI, AppKit, Apple Vision, and ScreenCaptureKit.*
 
 <br/>
 
-[Overview](#overview) • [Features](#key-features) • [Installation](#installation) • [Architecture](#architecture--technologies) • [Shortcuts](#controls--shortcuts) • [Permissions](#security--permissions)
+[Overview](#overview) • [Features](#key-features) • [Custom Widgets](#-custom-widgets-development) • [Telegram Bridge](#-telegram-clipboard-bridge) • [Installation](#installation) • [Shortcuts](#controls--shortcuts)
 
 ---
 
@@ -24,7 +28,10 @@
 
 ## Overview
 
-ICO bridges the gap between hardware and software on macOS by expanding the display notch into an extensible utility hub. For devices without a hardware notch (Intel MacBook, iMac, Mac mini, external displays), ICO automatically transitions into a floating island anchored to the top of the active workspace.
+> [!IMPORTANT]
+> **Hardware Compatibility Notice:** ICO is designed and optimized specifically for Mac computers **without** a physical display notch (MacBook Pro/Air with Touch Bar or standard bezels, iMac, Mac mini, Mac Studio, Mac Pro, and external monitors). It brings a sleek virtual notch and Dynamic Island experience to these displays. **ICO is not intended for Mac models with a built-in hardware display notch** (e.g. MacBook Pro 14"/16" and MacBook Air with M2/M3 physical notches).
+
+ICO brings the dynamic notch and island experience to Mac displays by placing an extensible utility hub anchored to the top of the screen:
 
 ```
        ┌───────────────────────────────┐
@@ -53,21 +60,117 @@ ICO bridges the gap between hardware and software on macOS by expanding the disp
 * **Per-App Volume Mixer:** Granular audio gain adjustment for individual running processes without altering the global macOS master volume.
 * **Precision Countdown Timer:** Compact circular countdown with progress badges, ambient sound alerts, and island expansion upon completion.
 
-### Extensible HTML/JS Widgets
-* **Native WebKit Sandbox:** Drop any HTML, CSS, and JavaScript folder into `~/.ico/widgets/` to run custom widgets directly inside the island.
-* **JavaScript Bridge (`window.ico`):** Full native communication for notifications (`ico.toast`), clipboard access (`ico.copy`), panel controls (`ico.close`), and external links (`ico.openURL`).
-* **Built-in Starter Template:** Bundled with a live, real-time cryptocurrency ticker (BTC, ETH, TON, SOL) querying Binance APIs with zero configuration.
-* **Instant Access:** First-class island tab, Touch Bar switcher, and one-click Finder folder access.
-
 ### Workspace & Data Management
 * **Temporary File Shelf:** Drag-and-drop landing strip at the upper screen boundary for staging files, images, and folders between spaces and full-screen applications.
-* **Clipboard History:** Persistent clipboard stack with item deletion, full history clearing, keyword search, and instant re-insertion.
-* **Application Hub:** Fast overview of running GUI applications with window focus switching.
+* **Smart Clipboard History:** Persistent clipboard stack with individual item deletion, full history clearing, search filtering, and 1-click **Telegram forwarding** to mobile devices.
+* **Application Hub:** Instant overview of running GUI applications with window focus switching.
+* **Window Settings (Always on Top):** Toggle whether the island floats above fullscreen windows or behaves as a standard window that doesn't block workspace workflows.
 
-### Display & Hardware Adaptation
-* **Hardware Notch Alignment:** Dynamically binds to the physical camera housing on MacBook Pro 14"/16" and MacBook Air models using display safe-area metrics.
-* **Multi-Display & Fullscreen Spaces:** Seamlessly migrates to the screen hosting the cursor; persists across Mission Control spaces and fullscreen applications.
-* **Native Touch Bar Integration:** Deep integration with MacBook Pro Touch Bar via private `DFRFoundation` APIs, providing persistent Control Strip toggles, section tabs, and pin state control.
+---
+
+## 🧩 Custom Widgets Development (HTML / CSS / JS)
+
+Users can build custom interactive widgets for the ICO notch in minutes. Widgets run inside an isolated `WKWebView` with hardware graphics acceleration and transparent backgrounds.
+
+### 1. File Structure
+All widgets live locally in your user directory:
+```
+~/.ico/widgets/<widget-id>/
+├── widget.json   # Metadata (title, icon, height)
+└── index.html    # Layout, styles, and JavaScript logic
+```
+*(You can click the **«📁 Folder»** button inside the Widgets panel to open this folder in Finder immediately).*
+
+### 2. Manifest `widget.json`
+```json
+{
+  "name": "My Widget",
+  "icon": "sparkles",
+  "description": "Custom HTML/JS notch widget",
+  "height": 260
+}
+```
+*Supports any system SF Symbols name (e.g., `sparkles`, `cloud.sun.fill`, `timer`, `note.text`, `chart.bar.fill`).*
+
+### 3. Native JavaScript API (`window.ico`)
+Every widget gets access to the native `window.ico` bridge:
+
+| Method | Description | Example |
+|---|---|---|
+| `window.ico.toast(message, icon)` | Shows a native floating pill toast below the notch | `window.ico.toast('Saved!', 'checkmark')` |
+| `window.ico.copy(text)` | Copies text into the macOS system pasteboard | `window.ico.copy('https://example.com')` |
+| `window.ico.close()` | Collapses the island back to compact mode | `window.ico.close()` |
+| `window.ico.openURL(url)` | Opens an external URL in the default browser | `window.ico.openURL('https://binance.com')` |
+
+### 4. Minimal Widget Example
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      background: transparent;
+      color: #fff;
+      font-family: -apple-system, sans-serif;
+      padding: 16px;
+      user-select: none;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    button {
+      background: #fff;
+      color: #000;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3>Hello from ICO! 🏝</h3>
+    <button onclick="window.ico.toast('Clicked!', 'hand.wave.fill')">Click Me</button>
+  </div>
+</body>
+</html>
+```
+
+---
+
+## 💡 Popular Widget Ideas for the Notch
+
+Here are some great widget concepts you can create or install in 1 click from the built-in **Widget Store**:
+
+| Widget | Concept & Use Case | Tech / API |
+|---|---|---|
+| 🪙 **Crypto / Stock Ticker** | Live Bitcoin, Ethereum, Solana, and S&P 500 quotes with price change badges | Binance WebSocket / CoinGecko / Yahoo Finance |
+| 🌤 **Minimalist Weather** | Current weather, precipitation radar, and hourly forecast | Open-Meteo / wttr.in (No API key needed) |
+| 📝 **Quick Scratchpad** | Sticky memo pad for temporary text, phone numbers, and code snippets | `localStorage` + `window.ico.copy` |
+| ⏳ **Pomodoro & Focus Timer** | 25/5 interval productivity clock with circular progress animation | HTML5 Canvas / CSS SVG stroke |
+| 🐙 **GitHub Activity Watcher** | Real-time notifications for GitHub mentions, assigned PRs, and commit streaks | GitHub REST API |
+| 🕒 **World Clock Matrix** | Parallel timezones for remote teams (New York, London, Tokyo, Berlin) | Native JS `Intl.DateTimeFormat` |
+| ⚡ **System Glance Monitor** | Instant CPU load, RAM usage, Wi-Fi speed, and battery health percentage | Lightweight system scripts |
+| 🤖 **AI Quick Prompt Bar** | 1-line query field to ask ChatGPT / Claude without leaving your current workspace | OpenAI / Anthropic API |
+
+---
+
+## ✈️ Telegram Clipboard Bridge (Mac → Phone)
+
+ICO enables 1-click forwarding of any copied text, links, or screenshots directly to your phone via your personal Telegram Bot:
+
+1. In the island header, click the **«⚙️ Settings»** gear button on the right.
+2. In the **«Telegram Sync»** section, configure:
+   * **Bot Token** (create a free bot in 30 seconds via [@BotFather](https://t.me/BotFather))
+   * **Chat ID** (find your user ID via [@userinfobot](https://t.me/userinfobot))
+3. Click **«Test Connection»** to verify setup.
+4. Now in the **«Clipboard»** tab, every entry features a paper plane **«✈️»** button that instantly sends that snippet to your mobile Telegram!
 
 ---
 
@@ -110,18 +213,6 @@ cd ico
 ./build_dmg.sh
 ```
 
-<details>
-<summary><strong>Manual Compilation Commands</strong></summary>
-
-```bash
-# Debug build
-swift build
-
-# Universal Release Build (Apple Silicon + Intel)
-swift build -c release --arch arm64 --arch x86_64
-```
-</details>
-
 ---
 
 ## Controls & Shortcuts
@@ -130,36 +221,10 @@ swift build -c release --arch arm64 --arch x86_64
 |---|---|---|
 | **Expand / Collapse** | `Hover` or `Left Click` | Open or close the primary island panel |
 | **Dismiss Panel** | <kbd>Esc</kbd> or `External Click` | Closes expanded island if unpinned |
-| **Toggle Island** | <kbd>⌘ Cmd</kbd> + <kbd>D</kbd> | Global hotkey via status item menu |
-| **Pin Island** | `Pin Button` or `Touch Bar Pin` | Prevents auto-dismissal on focus loss |
-| **Compact Style** | `Status Menu → Style` | Standard (24px) / Minimal (6px) / Hidden (0px) |
-| **Recenter Window** | `Status Menu → Recenter` | Recalculates screen geometry for active display |
-
----
-
-## Security & Permissions
-
-ICO runs as an unprivileged, menu-bar accessory application (`LSUIElement = true`). Specific features require standard macOS user authorizations configured in **System Settings → Privacy & Security**:
-
-* **Screen Recording (`ScreenCaptureKit`):** Required exclusively during user-initiated OCR region selection or QR screen scanning. No continuous or background recording takes place.
-* **Audio Capture:** Utilized strictly by the Per-App Mixer to route and scale process-specific audio gain.
-* **Accessibility:** Used for window switching in the application overview panel.
-* **AppleEvents:** Permits transport controls and metadata retrieval from supported third-party media applications.
-
-> **Note on Code Signing:** Binaries are signed locally with an Ad-Hoc signature (`codesign -s -`) to ensure TCC permission preferences persist across application restarts.
-
----
-
-## Continuous Delivery
-
-This repository uses automated GitHub Actions workflows to compile and publish Universal Binaries directly on Apple Silicon runners upon tag dispatch:
-
-```bash
-git tag v1.0.1
-git push origin v1.0.1
-```
-
-Releases automatically bundle `ICO.app` into an optimized disk image with Applications folder symlinks and release notes.
+| **Settings Panel** | `Gear Button ⚙️` | Notch size, Always on Top, and Telegram Sync |
+| **Pin Island** | `Pin Button 📌` or `Touch Bar Pin` | Prevents auto-dismissal on focus loss |
+| **Compact Style** | `Settings → Notch Style` | Standard (24px) / Minimal (6px) / Hidden (0px) |
+| **Always on Top** | `Settings → Always on Top` | Toggles whether notch covers fullscreen windows |
 
 ---
 

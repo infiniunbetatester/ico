@@ -33,11 +33,11 @@ public enum IslandMode: String, CaseIterable, Identifiable, Sendable {
     
     public var dimensions: (width: CGFloat, height: CGFloat, radius: CGFloat) {
         switch self {
-        case .music: return (600, 340, 30)
+        case .music: return (640, 340, 30)
         case .files: return (640, 356, 30)
-        case .clipboard: return (604, 392, 30)
-        case .apps: return (708, 408, 32)
-        case .widgets: return (640, 356, 30)
+        case .clipboard: return (640, 392, 30)
+        case .apps: return (640, 380, 30)
+        case .widgets: return (640, 380, 30)
         }
     }
 }
@@ -103,6 +103,20 @@ public final class IslandState {
     public var compactStyle: CompactStyle = .standard
     public var isPinnedOpen: Bool = false
     public var isHoverOpened: Bool = false
+    
+    // Preferences & Settings
+    public var isSettingsOpen: Bool = false {
+        didSet {
+            updateDimensions()
+        }
+    }
+    
+    public var isAlwaysOnTop: Bool = (UserDefaults.standard.object(forKey: "ico_always_on_top") as? Bool) ?? true {
+        didSet {
+            UserDefaults.standard.set(isAlwaysOnTop, forKey: "ico_always_on_top")
+            NotchWindowController.shared.updateWindowLevel(alwaysOnTop: isAlwaysOnTop)
+        }
+    }
     
     // Dimensions
     public var targetWidth: CGFloat = 180
@@ -210,6 +224,7 @@ public final class IslandState {
     }
     
     public func collapse() {
+        isSettingsOpen = false
         isHoverOpened = false
         setView(.compact)
     }
@@ -226,6 +241,10 @@ public final class IslandState {
                 targetHeight = d.height
                 targetRadius = d.radius
             }
+        } else if isSettingsOpen {
+            targetWidth = 640
+            targetHeight = 480
+            targetRadius = 30
         } else {
             let d = mode.dimensions
             targetWidth = d.width

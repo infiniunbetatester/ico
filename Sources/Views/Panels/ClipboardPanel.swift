@@ -8,15 +8,15 @@ public struct ClipboardPanel: View {
     }
     
     public var body: some View {
-        VStack(spacing: 13) {
-            // Search Bar & Count
-            HStack(spacing: 12) {
-                HStack(spacing: 8) {
+        VStack(spacing: 12) {
+            // Search & Tools Bar
+            HStack(spacing: 10) {
+                HStack(spacing: 7) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 0.41, green: 0.41, blue: 0.44))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(red: 0.5, green: 0.5, blue: 0.53))
                     
-                    TextField("Поиск в буфере", text: $state.clipQuery)
+                    TextField("Поиск в буфере обмена...", text: $state.clipQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 11))
                         .foregroundColor(Color(red: 0.89, green: 0.89, blue: 0.91))
@@ -35,6 +35,27 @@ public struct ClipboardPanel: View {
                     .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.43))
                 
                 if !state.clips.isEmpty {
+                    // Quick Send to Telegram
+                    Button {
+                        if let first = state.clips.first {
+                            sendClipToTelegram(text: first.text)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 9))
+                            Text("В Telegram")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundColor(Color.cyan)
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(Color.cyan.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Отправить последний скопированный текст в Telegram")
+                    
                     Button {
                         state.clearAllClips()
                     } label: {
@@ -81,6 +102,9 @@ public struct ClipboardPanel: View {
                                 onTap: {
                                     state.copyClipToPasteboard(id: clip.id)
                                 },
+                                onSendTelegram: {
+                                    sendClipToTelegram(text: clip.text)
+                                },
                                 onDelete: {
                                     state.removeClip(id: clip.id)
                                 }
@@ -93,7 +117,7 @@ public struct ClipboardPanel: View {
             
             // Footer
             HStack {
-                Text("Нажмите на фрагмент, чтобы скопировать обратно")
+                Text("Нажмите на строку чтобы скопировать, или ✈️ чтобы отправить на телефон в Telegram")
                     .font(.system(size: 9.5))
                     .foregroundColor(Color(red: 0.37, green: 0.37, blue: 0.4))
                 
@@ -110,7 +134,28 @@ public struct ClipboardPanel: View {
             .padding(.top, 2)
         }
         .padding(.horizontal, 24)
-        .frame(width: 604)
+        .frame(width: 640)
+    }
+    
+    private func sendClipToTelegram(text: String) {
+        guard !text.isEmpty else { return }
+        let tg = TelegramSync.shared
+        if !tg.isConfigured {
+            state.showToast("Настройте Telegram в Настройках ⚙️", icon: "exclamationmark.triangle.fill")
+            withAnimation(IslandToolsStyle.spring) {
+                state.isSettingsOpen = true
+            }
+            return
+        }
+        
+        Task {
+            do {
+                try await tg.sendText(text)
+                state.showToast("Отправлено в Telegram ✈️", icon: "paperplane.fill")
+            } catch {
+                state.showToast("Ошибка Telegram: \(error.localizedDescription)", icon: "exclamationmark.circle.fill")
+            }
+        }
     }
 }
 
@@ -118,6 +163,7 @@ private struct RealClipRowView: View {
     let clip: RealClipItem
     let isCopied: Bool
     let onTap: () -> Void
+    let onSendTelegram: () -> Void
     let onDelete: () -> Void
     @State private var isHovered: Bool = false
     
@@ -155,7 +201,7 @@ private struct RealClipRowView: View {
             }
             .buttonStyle(.plain)
             
-            // Right actions: Copy status chip + Delete button
+            // Right actions: Copy status chip + Telegram button + Delete button
             HStack(spacing: 6) {
                 Button(action: onTap) {
                     HStack(spacing: 5) {
@@ -173,6 +219,18 @@ private struct RealClipRowView: View {
                     .clipShape(RoundedRectangle(cornerRadius: isCopied ? 11 : 9, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                
+                // Telegram forward button
+                Button(action: onSendTelegram) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(isHovered ? Color.cyan : Color.white.opacity(0.2))
+                        .frame(width: 28, height: 28)
+                        .background(isHovered ? Color.cyan.opacity(0.12) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help("Отправить эту запись в Telegram на телефон")
                 
                 // Delete button
                 Button(action: onDelete) {
@@ -198,15 +256,15 @@ private struct RealClipRowView: View {
         switch clip.kind {
         case .text: return Color(red: 0.14, green: 0.14, blue: 0.16)
         case .link: return Color(red: 0.1, green: 0.15, blue: 0.21)
-        case .mail: return Color(red: 0.19, green: 0.15, blue: 0.11)
+        case .mail: return Color(red: 0.12, green: 0.18, blue: 0.16)
         }
     }
     
     private var badgeIconColor: Color {
         switch clip.kind {
-        case .text: return Color(red: 0.67, green: 0.66, blue: 0.73)
-        case .link: return Color(red: 0.52, green: 0.69, blue: 0.88)
-        case .mail: return Color(red: 0.85, green: 0.71, blue: 0.55)
+        case .text: return Color(red: 0.65, green: 0.65, blue: 0.7)
+        case .link: return Color(red: 0.4, green: 0.65, blue: 0.95)
+        case .mail: return Color(red: 0.4, green: 0.8, blue: 0.65)
         }
     }
     
@@ -220,7 +278,7 @@ private struct RealClipRowView: View {
     
     private func formattedTime(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
+        formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

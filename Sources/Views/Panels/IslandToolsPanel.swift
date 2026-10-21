@@ -23,7 +23,7 @@ public struct IslandToolsPanel: View {
             }
         }
         .padding(.horizontal, 24)
-        .frame(width: 708)
+        .frame(width: 640)
         .preferredColorScheme(.dark)
     }
 }

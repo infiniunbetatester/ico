@@ -119,7 +119,7 @@ public struct AppsPanel: View {
             .padding(.top, 4)
         }
         .padding(.horizontal, 24)
-        .frame(width: 708)
+        .frame(width: 640)
     }
 }
 

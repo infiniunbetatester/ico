@@ -247,7 +247,7 @@ public struct MusicPanel: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 22)
-        .frame(width: 600)
+        .frame(width: 640)
     }
     
     private func formatTime(_ seconds: Double) -> String {

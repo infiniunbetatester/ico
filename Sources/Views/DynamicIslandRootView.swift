@@ -5,6 +5,7 @@ public struct DynamicIslandRootView: View {
     @State private var tools = IslandTools.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var leaveTask: Task<Void, Never>?
+    @State private var isDragTargeted: Bool = false
     
     public init() {}
     
@@ -26,11 +27,12 @@ public struct DynamicIslandRootView: View {
                         
                         Color(red: 0.05, green: 0.05, blue: 0.06).opacity(0.82)
                     }
+                    .frame(width: totalShapeWidth, height: currentHeight, alignment: .top)
                     .clipShape(
                         NotchSurfaceShape(
                             cornerRadius: currentRadius,
                             shoulderWidth: shoulderFlare,
-                            shoulderHeight: min(14, currentHeight / 2)
+                            shoulderHeight: 14
                         )
                     )
                     .shadow(color: Color.black.opacity(0.35), radius: 16, x: 0, y: 14)
@@ -43,9 +45,16 @@ public struct DynamicIslandRootView: View {
                             HeaderTabBar(state: state)
                                 .padding(.top, 38)
                             
-                            // Active Content Panel (Tools or standard tabs)
+                            // Active Content Panel (Settings, Tools or standard tabs)
                             ZStack(alignment: .top) {
-                                if tools.active != nil {
+                                if state.isSettingsOpen {
+                                    SettingsPanel(state: state)
+                                        .transition(
+                                            .opacity.combined(
+                                                with: .scale(scale: 0.97, anchor: .top)
+                                            )
+                                        )
+                                } else if tools.active != nil {
                                     IslandToolsPanel(tools: tools)
                                         .transition(
                                             .opacity.combined(
@@ -75,8 +84,9 @@ public struct DynamicIslandRootView: View {
                                 }
                             }
                             .animation(IslandToolsStyle.spring, value: tools.active)
+                            .animation(IslandToolsStyle.spring, value: state.isSettingsOpen)
                             .padding(.top, 14)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .frame(width: currentWidth, alignment: .top)
                         } else {
                             // Compact Notch state
                             CompactView(state: state) {
@@ -87,6 +97,7 @@ public struct DynamicIslandRootView: View {
                             .frame(height: currentHeight)
                         }
                     }
+                    .frame(width: currentWidth, height: currentHeight, alignment: .top)
                     
                     // Toast notification pill below island
                     if let msg = state.toastMessage {
@@ -120,7 +131,21 @@ public struct DynamicIslandRootView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                .frame(width: totalShapeWidth, height: currentHeight)
+                .frame(width: totalShapeWidth, height: currentHeight, alignment: .top)
+                .onDrop(of: [.fileURL], isTargeted: $isDragTargeted) { providers in
+                    handleDrop(providers)
+                }
+                .onChange(of: isDragTargeted) { _, targeted in
+                    if targeted {
+                        withAnimation(IslandToolsStyle.spring) {
+                            tools.leaveTools()
+                            state.isSettingsOpen = false
+                            state.setMode(.files)
+                            state.isHoverOpened = true
+                            state.setView(.open)
+                        }
+                    }
+                }
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentWidth)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentHeight)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentRadius)
@@ -166,5 +191,20 @@ public struct DynamicIslandRootView: View {
                 }
             }
         }
+    }
+    
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        var didLoad = false
+        for provider in providers {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url = url else { return }
+                Task { @MainActor in
+                    state.addRealFile(url: url)
+                    NSSound(named: "Glass")?.play()
+                }
+            }
+            didLoad = true
+        }
+        return didLoad
     }
 }
