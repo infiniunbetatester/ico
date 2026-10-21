@@ -3,25 +3,25 @@ import SwiftUI
 public struct DynamicIslandRootView: View {
     @State private var state = IslandState.shared
     @State private var tools = IslandTools.shared
+    @AppStorage(ICOFirstLaunch.storageKey, store: UserDefaults.standard) private var welcomeCompleted = false
     @State private var hoverTask: Task<Void, Never>?
     @State private var leaveTask: Task<Void, Never>?
-    @State private var isDragTargeted: Bool = false
     
     public init() {}
     
     public var body: some View {
-        let currentWidth = state.targetWidth
-        let currentHeight = state.targetHeight
-        let currentRadius = state.targetRadius
-        let shoulderFlare: CGFloat = (state.view == .compact && state.compactStyle == .minimal) ? 6 : 16
+        let showsWelcome = !welcomeCompleted
+        let currentWidth = showsWelcome ? ICOWelcomeMetrics.contentWidth : state.targetWidth
+        let currentHeight = showsWelcome ? ICOWelcomeMetrics.height : state.targetHeight
+        let currentRadius = showsWelcome ? ICOWelcomeMetrics.cornerRadius : state.targetRadius
+        let shoulderFlare: CGFloat = (!showsWelcome && state.view == .compact && state.compactStyle == .minimal) ? 6 : 16
         let totalShapeWidth = currentWidth + (shoulderFlare * 2)
-        let isHiddenCompact = (state.view == .compact && state.compactStyle == .hidden)
+        let isHiddenCompact = (!showsWelcome && state.view == .compact && state.compactStyle == .hidden)
         
         VStack(spacing: 0) {
             if !isHiddenCompact {
                 ZStack(alignment: .top) {
-                    // Frosted Glass Silhouette (Ultra-thin material with deep dark tint)
-                    ZStack {
+                    ZStack(alignment: .top) {
                         Rectangle()
                             .fill(.ultraThinMaterial)
                         
@@ -40,7 +40,19 @@ public struct DynamicIslandRootView: View {
                     
                     // Content Layer
                     VStack(spacing: 0) {
-                        if state.view == .open {
+                        if showsWelcome {
+                            ICOWelcomeView {
+                                withAnimation(ICODesign.motion(reduced: false)) {
+                                    welcomeCompleted = true
+                                    state.updateDimensions()
+                                    NotificationCenter.default.post(name: ICOFirstLaunch.didComplete, object: nil)
+                                }
+                            }
+                            .transition(.asymmetric(
+                                insertion: .opacity,
+                                removal: .opacity.combined(with: .scale(scale: 0.97))
+                            ))
+                        } else if state.view == .open {
                             // Header Bar (Pin, Tabs, Compact Settings, Collapse)
                             HeaderTabBar(state: state)
                                 .padding(.top, 38)
@@ -83,6 +95,7 @@ public struct DynamicIslandRootView: View {
                                     )
                                 }
                             }
+                            .modifier(ICOSectionEntrance(selectionKey: state.isSettingsOpen ? "settings" : (tools.active != nil ? "tools_\(tools.active!.rawValue)" : state.mode.rawValue)))
                             .animation(IslandToolsStyle.spring, value: tools.active)
                             .animation(IslandToolsStyle.spring, value: state.isSettingsOpen)
                             .padding(.top, 14)
@@ -132,20 +145,6 @@ public struct DynamicIslandRootView: View {
                     }
                 }
                 .frame(width: totalShapeWidth, height: currentHeight, alignment: .top)
-                .onDrop(of: [.fileURL], isTargeted: $isDragTargeted) { providers in
-                    handleDrop(providers)
-                }
-                .onChange(of: isDragTargeted) { _, targeted in
-                    if targeted {
-                        withAnimation(IslandToolsStyle.spring) {
-                            tools.leaveTools()
-                            state.isSettingsOpen = false
-                            state.setMode(.files)
-                            state.isHoverOpened = true
-                            state.setView(.open)
-                        }
-                    }
-                }
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentWidth)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentHeight)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentRadius)
@@ -166,6 +165,8 @@ public struct DynamicIslandRootView: View {
     }
     
     private func handleHover(_ hovering: Bool) {
+        guard welcomeCompleted else { return }
+        guard !state.isExternalFileDragActive else { return }
         hoverTask?.cancel()
         leaveTask?.cancel()
         
@@ -173,6 +174,7 @@ public struct DynamicIslandRootView: View {
             if state.view == .compact && state.compactStyle != .hidden {
                 hoverTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 170_000_000)
+                    guard !state.isExternalFileDragActive else { return }
                     if !Task.isCancelled && state.view == .compact {
                         state.isHoverOpened = true
                         withAnimation(.spring(response: 0.44, dampingFraction: 0.88)) {
@@ -185,6 +187,7 @@ public struct DynamicIslandRootView: View {
             if state.isHoverOpened && !state.isPinnedOpen {
                 leaveTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 650_000_000)
+                    guard !state.isExternalFileDragActive else { return }
                     if !Task.isCancelled && !state.isPinnedOpen && state.isHoverOpened && !tools.ocr.isSelecting {
                         state.isHoverOpened = false
                         withAnimation(IslandToolsStyle.spring) {
@@ -194,20 +197,5 @@ public struct DynamicIslandRootView: View {
                 }
             }
         }
-    }
-    
-    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        var didLoad = false
-        for provider in providers {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url = url else { return }
-                Task { @MainActor in
-                    state.addRealFile(url: url)
-                    NSSound(named: "Glass")?.play()
-                }
-            }
-            didLoad = true
-        }
-        return didLoad
     }
 }

@@ -103,6 +103,7 @@ public final class IslandState {
     public var compactStyle: CompactStyle = .standard
     public var isPinnedOpen: Bool = false
     public var isHoverOpened: Bool = false
+    public var isExternalFileDragActive = false
     
     // Preferences & Settings
     public var isSettingsOpen: Bool = false {
@@ -166,8 +167,18 @@ public final class IslandState {
         return Color(red: 0.22, green: 0.82, blue: 0.58)
     }
     
-    // MARK: - Files Shelf
+    // MARK: - Files Shelf & Liquid Droplet Pull
     public var shelfFiles: [RealShelfFile] = []
+    public var isDropletPulling: Bool = false
+    public var dropletExtraHeight: CGFloat = 0.0
+    public var isDropletTargeted: Bool = false
+    public var dropletAbsorbFlash: Bool = false
+    private var dropletDwellTask: Task<Void, Never>?
+    
+    public var dropletStretchFactor: CGFloat {
+        guard isDropletPulling else { return 0.0 }
+        return min(1.0, max(0.0, dropletExtraHeight / 68.0))
+    }
     
     // MARK: - Clipboard History
     public var clipQuery: String = ""
@@ -185,6 +196,9 @@ public final class IslandState {
     private var isReady: Bool = false
     
     public init() {
+        if ICOFirstLaunch.isRequired {
+            self.view = .open
+        }
         updateDimensions()
         refreshRunningApps()
         startClipboardMonitor()
@@ -241,12 +255,20 @@ public final class IslandState {
     }
     
     public func collapse() {
+        guard !ICOFirstLaunch.isRequired else { return }
+        guard !isExternalFileDragActive else { return }
         isSettingsOpen = false
         isHoverOpened = false
         setView(.compact)
     }
     
     public func updateDimensions() {
+        if ICOFirstLaunch.isRequired {
+            targetWidth = ICOWelcomeMetrics.contentWidth
+            targetHeight = ICOWelcomeMetrics.height
+            targetRadius = ICOWelcomeMetrics.cornerRadius
+            return
+        }
         if view == .compact {
             if compactStyle == .standard && isPlaying {
                 targetWidth = 208
@@ -309,6 +331,71 @@ public final class IslandState {
     public func removeShelfFile(id: UUID) {
         shelfFiles.removeAll { $0.id == id }
         notifyTouchBar()
+    }
+    
+    // MARK: - Liquid Droplet Actions
+    
+    public func setDropletPull(extraHeight: CGFloat, isTargeted: Bool) {
+        let prevTargeted = self.isDropletTargeted
+        self.isDropletPulling = true
+        self.dropletExtraHeight = extraHeight
+        self.isDropletTargeted = isTargeted
+        
+        if isTargeted && !prevTargeted {
+            NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            
+            dropletDwellTask?.cancel()
+            dropletDwellTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                guard let self = self, self.isDropletPulling, self.isDropletTargeted else { return }
+                self.expandShelfFromDroplet()
+            }
+        } else if !isTargeted && prevTargeted {
+            dropletDwellTask?.cancel()
+            dropletDwellTask = nil
+        }
+    }
+    
+    public func resetDropletPull() {
+        dropletDwellTask?.cancel()
+        dropletDwellTask = nil
+        isDropletPulling = false
+        dropletExtraHeight = 0
+        isDropletTargeted = false
+    }
+    
+    public func expandShelfFromDroplet() {
+        resetDropletPull()
+        withAnimation(.spring(response: 0.44, dampingFraction: 0.88)) {
+            IslandTools.shared.leaveTools()
+            self.isSettingsOpen = false
+            self.setMode(.files)
+            self.isHoverOpened = true
+            self.setView(.open)
+        }
+    }
+    
+    public func absorbDroppedFiles(urls: [URL]) {
+        for url in urls {
+            addRealFile(url: url)
+        }
+        
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        NSSound(named: "Glass")?.play()
+        
+        dropletAbsorbFlash = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            self?.dropletAbsorbFlash = false
+        }
+        
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.54)) {
+            resetDropletPull()
+        }
+        
+        let count = urls.count
+        let fileText = count == 1 ? (urls.first?.lastPathComponent ?? "Файл") : "\(count) файла"
+        showToast("📥 \(fileText) на полке", icon: "tray.and.arrow.down.fill")
     }
     
     // MARK: - Clipboard Monitor

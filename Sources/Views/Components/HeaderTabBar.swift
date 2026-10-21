@@ -68,7 +68,7 @@ public struct HeaderTabBar: View {
                         )
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ICOPressStyle(cornerRadius: 14))
                 .help(state.isSettingsOpen ? "Назад к разделам" : tools.active != nil ? "Назад к разделам" : "Закрепить раскрытый остров")
 
                 Spacer()
@@ -107,7 +107,7 @@ public struct HeaderTabBar: View {
                             .background(state.isSettingsOpen ? Color.white.opacity(0.14) : Color.white.opacity(0.06))
                             .clipShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ICOPressStyle(cornerRadius: 14))
                     .help("Настройки")
 
                     Button {
@@ -122,7 +122,7 @@ public struct HeaderTabBar: View {
                             .background(Color.white.opacity(0.06))
                             .clipShape(Circle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ICOPressStyle(cornerRadius: 14))
                     .help("Свернуть · Esc")
                 }
             }
@@ -173,7 +173,7 @@ public struct HeaderTabBar: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ICOPressStyle(cornerRadius: 10))
         .help(title)
     }
 }

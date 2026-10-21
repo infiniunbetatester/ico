@@ -20,6 +20,8 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
     private var toggleButton: NSButton?
     private var pinButton: NSButton?
     private var isSystemModalActive: Bool = false
+    private weak var musicPlayButton: NSButton?
+    private weak var musicTrackButton: NSButton?
     
     private typealias DFRElementSetControlStripPresenceFunc = @convention(c) (CFString, Bool) -> Void
     
@@ -261,6 +263,19 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
     
     private func rebuildContextViews(state: IslandState) {
         guard let stack = contextStackView else { return }
+        
+        // If already in music mode and buttons are present, update in-place with smooth color animation!
+        if state.mode == .music,
+           let playBtn = musicPlayButton,
+           let trackBtn = musicTrackButton,
+           playBtn.superview == stack,
+           trackBtn.superview == stack {
+            updateMusicButtonsInPlace(playBtn: playBtn, trackBtn: trackBtn, state: state)
+            return
+        }
+        
+        musicPlayButton = nil
+        musicTrackButton = nil
         
         // Remove all previous subviews
         for view in stack.arrangedSubviews {
@@ -555,6 +570,39 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
             action: #selector(musicTitleTapped)
         )
         stack.addArrangedSubview(trackBtn)
+        
+        self.musicPlayButton = playBtn
+        self.musicTrackButton = trackBtn
+    }
+    
+    private func updateMusicButtonsInPlace(playBtn: NSButton, trackBtn: NSButton, state: IslandState) {
+        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+        let iconName = state.isPlaying ? "pause.fill" : "play.fill"
+        playBtn.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+        
+        let fullTitle = state.trackArtist.isEmpty ? state.trackTitle : "\(state.trackTitle) – \(state.trackArtist)"
+        let cleanTitle = fullTitle.replacingOccurrences(of: "\n", with: " ")
+        let truncated = cleanTitle.count > 24 ? String(cleanTitle.prefix(23)) + "…" : cleanTitle
+        trackBtn.title = truncated
+        
+        let artworkThumb: NSImage?
+        if let art = state.artworkImage {
+            artworkThumb = makeRoundedThumbnail(from: art, size: NSSize(width: 20, height: 20), cornerRadius: 4.5)
+        } else {
+            artworkThumb = nil
+        }
+        trackBtn.image = artworkThumb ?? NSImage(systemSymbolName: "music.note", accessibilityDescription: nil)?.withSymbolConfiguration(config)
+        
+        let targetPlayAura = state.isPlaying ? state.artworkAuraColor?.withAlphaComponent(0.4) : nil
+        let targetTrackAura = state.isPlaying ? state.artworkAuraColor : nil
+        
+        // Smoothly animate bezelColor transition on Touch Bar without flickering or rebuilding!
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.55
+            context.allowsImplicitAnimation = true
+            playBtn.animator().bezelColor = targetPlayAura
+            trackBtn.animator().bezelColor = targetTrackAura
+        }
     }
     
     @objc private func musicPrevTapped() {

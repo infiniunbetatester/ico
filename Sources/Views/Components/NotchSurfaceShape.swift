@@ -2,72 +2,60 @@ import SwiftUI
 
 public struct NotchSurfaceShape: Shape {
     public var cornerRadius: CGFloat
-    public var shoulderWidth: CGFloat = 16
-    public var shoulderHeight: CGFloat = 14
-    
-    public var animatableData: CGFloat {
-        get { cornerRadius }
-        set { cornerRadius = newValue }
+    public var shoulderWidth: CGFloat
+    public var shoulderHeight: CGFloat
+
+    public var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(cornerRadius, AnimatablePair(shoulderWidth, shoulderHeight)) }
+        set {
+            cornerRadius = newValue.first
+            shoulderWidth = newValue.second.first
+            shoulderHeight = newValue.second.second
+        }
     }
-    
+
     public init(cornerRadius: CGFloat = 30, shoulderWidth: CGFloat = 16, shoulderHeight: CGFloat = 14) {
         self.cornerRadius = cornerRadius
         self.shoulderWidth = shoulderWidth
         self.shoulderHeight = shoulderHeight
     }
-    
+
     public func path(in rect: CGRect) -> Path {
+        guard rect.width > 0, rect.height > 0 else { return Path() }
+        let sw = min(max(0, shoulderWidth), rect.width * 0.24)
+        let sh = min(max(0, shoulderHeight), rect.height * 0.5)
+        let left = rect.minX + sw
+        let right = rect.maxX - sw
+        let top = rect.minY
+        let bottom = rect.maxY
+        let radius = min(max(0, cornerRadius), (right - left) * 0.5, rect.height - sh)
+        let c: CGFloat = 0.55228475
+
         var path = Path()
-        let w = rect.width
-        let h = rect.height
-        let r = min(cornerRadius, h / 2.0)
-        let sW = shoulderWidth
-        let sH = min(shoulderHeight, h / 2.0)
-        
-        let leftBody = sW
-        let rightBody = w - sW
-        let c: CGFloat = 0.55228475 // Standard smooth circle/corner bezier coefficient
-        
-        // Start at top-left edge of the shoulder
-        path.move(to: CGPoint(x: 0, y: 0))
-        
-        // Concave curve into the top-left of the main body
+        path.move(to: CGPoint(x: rect.minX, y: top))
         path.addCurve(
-            to: CGPoint(x: leftBody, y: sH),
-            control1: CGPoint(x: leftBody - 4, y: 0),
-            control2: CGPoint(x: leftBody, y: 0)
+            to: CGPoint(x: left, y: top + sh),
+            control1: CGPoint(x: rect.minX + sw * 0.60, y: top),
+            control2: CGPoint(x: left, y: top + sh * 0.08)
         )
-        
-        // Left vertical edge down to bottom-left corner
-        path.addLine(to: CGPoint(x: leftBody, y: h - r))
-        
-        // Smooth bottom-left corner
+        path.addLine(to: CGPoint(x: left, y: bottom - radius))
         path.addCurve(
-            to: CGPoint(x: leftBody + r, y: h),
-            control1: CGPoint(x: leftBody, y: h - r * (1.0 - c)),
-            control2: CGPoint(x: leftBody + r * (1.0 - c), y: h)
+            to: CGPoint(x: left + radius, y: bottom),
+            control1: CGPoint(x: left, y: bottom - radius + radius * c),
+            control2: CGPoint(x: left + radius - radius * c, y: bottom)
         )
-        
-        // Bottom horizontal straight edge
-        path.addLine(to: CGPoint(x: rightBody - r, y: h))
-        
-        // Smooth bottom-right corner
+        path.addLine(to: CGPoint(x: right - radius, y: bottom))
         path.addCurve(
-            to: CGPoint(x: rightBody, y: h - r),
-            control1: CGPoint(x: rightBody - r * (1.0 - c), y: h),
-            control2: CGPoint(x: rightBody, y: h - r * (1.0 - c))
+            to: CGPoint(x: right, y: bottom - radius),
+            control1: CGPoint(x: right - radius + radius * c, y: bottom),
+            control2: CGPoint(x: right, y: bottom - radius + radius * c)
         )
-        
-        // Right vertical edge up to shoulder
-        path.addLine(to: CGPoint(x: rightBody, y: sH))
-        
-        // Concave curve out to top-right edge
+        path.addLine(to: CGPoint(x: right, y: top + sh))
         path.addCurve(
-            to: CGPoint(x: w, y: 0),
-            control1: CGPoint(x: rightBody, y: 0),
-            control2: CGPoint(x: rightBody + 4, y: 0)
+            to: CGPoint(x: rect.maxX, y: top),
+            control1: CGPoint(x: right, y: top + sh * 0.08),
+            control2: CGPoint(x: rect.maxX - sw * 0.60, y: top)
         )
-        
         path.closeSubpath()
         return path
     }
