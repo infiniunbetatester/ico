@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import WebKit
 import Observation
 
 public struct CustomWidgetInfo: Identifiable, Sendable {
@@ -32,6 +33,59 @@ public final class WidgetManager {
     public var activeWidgetId: String?
     public var isViewingWidget: Bool = false // false = catalog/store, true = running widget view
     
+    // Cache of running webviews to preserve state, timers and memory across collapse/expand
+    @ObservationIgnored
+    private var webViewCache: [String: (view: WKWebView, token: UUID)] = [:]
+    
+    public func getOrCreateWebView(id: String, url: URL, reloadToken: UUID, coordinator: WidgetWebView.Coordinator) -> WKWebView {
+        if let cached = webViewCache[id] {
+            if cached.token != reloadToken {
+                let folder = url.deletingLastPathComponent()
+                cached.view.loadFileURL(url, allowingReadAccessTo: folder)
+                webViewCache[id] = (cached.view, reloadToken)
+            }
+            return cached.view
+        }
+        
+        let config = WKWebViewConfiguration()
+        let contentController = WKUserContentController()
+        
+        let bridgeScript = WKUserScript(
+            source: WidgetWebView.bridgeJavaScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        contentController.addUserScript(bridgeScript)
+        contentController.add(coordinator, name: "icoBridge")
+        config.userContentController = contentController
+        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
+        webView.navigationDelegate = coordinator
+        
+        let folder = url.deletingLastPathComponent()
+        webView.loadFileURL(url, allowingReadAccessTo: folder)
+        
+        webViewCache[id] = (webView, reloadToken)
+        return webView
+    }
+    
+    public func reloadWidgetWebView(id: String, url: URL) {
+        if let cached = webViewCache[id] {
+            let folder = url.deletingLastPathComponent()
+            cached.view.loadFileURL(url, allowingReadAccessTo: folder)
+        }
+    }
+    
+    public func notifyWidgets(isExpanded: Bool) {
+        let script = isExpanded ? "window.dispatchEvent(new CustomEvent('ico:expand'));" : "window.dispatchEvent(new CustomEvent('ico:collapse'));"
+        for (_, entry) in webViewCache {
+            entry.view.evaluateJavaScript(script, completionHandler: nil)
+        }
+    }
+    
     public var widgetsDirectory: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home.appendingPathComponent(".ico/widgets", isDirectory: true)
@@ -49,10 +103,11 @@ public final class WidgetManager {
             try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         }
         
-        let cryptoDir = dir.appendingPathComponent("crypto-ticker", isDirectory: true)
-        if !fm.fileExists(atPath: cryptoDir.path) {
-            if let storeCrypto = availableStoreWidgets.first(where: { $0.id == "crypto-ticker" }) {
-                installStoreWidget(storeCrypto)
+        let seedKey = "ico_widgets_seeded_v3"
+        if !UserDefaults.standard.bool(forKey: seedKey) {
+            UserDefaults.standard.set(true, forKey: seedKey)
+            if let todoWidget = availableStoreWidgets.first(where: { $0.id == "todo-checklist" }) {
+                installStoreWidget(todoWidget)
             }
         }
     }
@@ -135,6 +190,7 @@ public final class WidgetManager {
     }
     
     public func uninstallWidget(id: String) {
+        webViewCache.removeValue(forKey: id)
         let dir = widgetsDirectory.appendingPathComponent(id, isDirectory: true)
         try? FileManager.default.removeItem(at: dir)
         reloadWidgets()
@@ -255,18 +311,18 @@ public final class WidgetManager {
                 """
             ),
             StoreWidget(
-                id: "pomodoro-focus",
-                name: "Pomodoro Focus",
-                iconName: "timer",
-                description: "Таймер глубокой фокусировки 25/5 минут с визуальным кольцом прогресса.",
-                category: "Утилиты",
+                id: "todo-checklist",
+                name: "Чек-лист задач",
+                iconName: "checklist",
+                description: "Простой список дел на сегодня. Вычёркивай выполненные задачи в один клик.",
+                category: "Продуктивность",
                 defaultHeight: 260,
-                htmlContent: pomodoroWidgetHTML,
+                htmlContent: todoWidgetHTML,
                 widgetJson: """
                 {
-                  "name": "Pomodoro Focus",
-                  "icon": "timer",
-                  "description": "Таймер продуктивности 25/5",
+                  "name": "Чек-лист задач",
+                  "icon": "checklist",
+                  "description": "Простой список дел на сегодня",
                   "height": 260
                 }
                 """
@@ -458,61 +514,187 @@ public final class WidgetManager {
         """
     }
     
-    private var pomodoroWidgetHTML: String {
+    private var todoWidgetHTML: String {
         """
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; user-select: none; }
-            body { background: transparent; color: #fff; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-            .timer { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 12px; letter-spacing: -1px; }
-            .buttons { display: flex; gap: 8px; }
-            .btn { background: #fff; color: #000; border: none; padding: 8px 18px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
-            .btn-sec { background: rgba(255,255,255,0.1); color: #fff; }
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; user-select: none; }
+            body { background: transparent; color: #fff; padding: 12px 16px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+            .header { display: flex; gap: 8px; margin-bottom: 10px; }
+            input[type="text"] {
+              flex: 1; height: 32px; background: rgba(255,255,255,0.06);
+              border: 1px solid rgba(255,255,255,0.09); border-radius: 9px;
+              color: #fff; font-size: 12px; padding: 0 12px; outline: none;
+              transition: border-color 0.15s, background 0.15s;
+            }
+            input[type="text"]:focus {
+              background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22);
+            }
+            .add-btn {
+              height: 32px; padding: 0 14px; background: #fff; color: #000;
+              border: none; border-radius: 9px; font-size: 12px; font-weight: 600;
+              cursor: pointer; transition: transform 0.1s, opacity 0.15s;
+            }
+            .add-btn:active { transform: scale(0.96); }
+            .list {
+              flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;
+            }
+            .list::-webkit-scrollbar { width: 4px; }
+            .list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+            .item {
+              display: flex; align-items: center; gap: 10px;
+              padding: 8px 10px; background: rgba(255,255,255,0.035);
+              border: 1px solid rgba(255,255,255,0.05); border-radius: 9px;
+              transition: background 0.15s;
+            }
+            .item:hover { background: rgba(255,255,255,0.06); }
+            .checkbox {
+              width: 18px; height: 18px; border-radius: 6px;
+              border: 1.5px solid rgba(255,255,255,0.3); display: flex;
+              align-items: center; justify-content: center; cursor: pointer;
+              flex-shrink: 0; transition: all 0.15s;
+            }
+            .item.done .checkbox {
+              background: #10b981; border-color: #10b981;
+            }
+            .checkbox svg { display: none; width: 11px; height: 11px; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+            .item.done .checkbox svg { display: block; }
+            .item-text {
+              flex: 1; font-size: 12px; color: rgba(255,255,255,0.9);
+              line-height: 1.3; word-break: break-word; user-select: text; cursor: pointer;
+            }
+            .item.done .item-text {
+              text-decoration: line-through; color: rgba(255,255,255,0.35);
+            }
+            .del-btn {
+              width: 20px; height: 20px; border: none; background: transparent;
+              color: rgba(255,255,255,0.3); font-size: 13px; cursor: pointer;
+              display: flex; align-items: center; justify-content: center;
+              border-radius: 5px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+            }
+            .item:hover .del-btn { opacity: 1; }
+            .del-btn:hover { color: #f43f5e; }
+            .empty-msg {
+              text-align: center; color: rgba(255,255,255,0.35); font-size: 11.5px;
+              margin: auto 0; padding: 20px;
+            }
+            .footer {
+              display: flex; justify-content: space-between; align-items: center;
+              padding-top: 8px; font-size: 10.5px; color: rgba(255,255,255,0.45);
+              border-top: 1px solid rgba(255,255,255,0.06); margin-top: 6px;
+            }
+            .clean-btn {
+              background: transparent; border: none; color: rgba(255,255,255,0.5);
+              font-size: 10.5px; cursor: pointer; text-decoration: underline;
+            }
+            .clean-btn:hover { color: rgba(255,255,255,0.85); }
           </style>
         </head>
         <body>
-          <div class="timer" id="time">25:00</div>
-          <div class="buttons">
-            <button class="btn" id="start-btn" onclick="toggle()">Старт</button>
-            <button class="btn btn-sec" onclick="reset()">Сброс</button>
+          <div class="header">
+            <input type="text" id="task-input" placeholder="Добавить задачу (нажми Enter)..." />
+            <button class="add-btn" onclick="addTask()">Добавить</button>
+          </div>
+          <div class="list" id="task-list"></div>
+          <div class="footer">
+            <span id="counter">0 задач</span>
+            <button class="clean-btn" onclick="clearDone()">Очистить выполненные</button>
           </div>
           <script>
-            let sec = 25 * 60;
-            let timer = null;
-            function update() {
-              const m = Math.floor(sec / 60);
-              const s = sec % 60;
-              document.getElementById('time').innerText = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            let todos = [];
+            try {
+              const saved = localStorage.getItem('ico_todos');
+              if (saved) todos = JSON.parse(saved);
+            } catch(e) {}
+
+            const input = document.getElementById('task-input');
+            const listEl = document.getElementById('task-list');
+            const counterEl = document.getElementById('counter');
+
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') addTask();
+            });
+
+            function save() {
+              try {
+                localStorage.setItem('ico_todos', JSON.stringify(todos));
+                if (window.ico && window.ico.storage) {
+                  window.ico.storage.set('todos', todos);
+                }
+              } catch(e) {}
+              render();
             }
-            function toggle() {
-              if (timer) {
-                clearInterval(timer);
-                timer = null;
-                document.getElementById('start-btn').innerText = 'Старт';
-              } else {
-                timer = setInterval(() => {
-                  if (sec > 0) {
-                    sec--;
-                    update();
-                  } else {
-                    clearInterval(timer);
-                    timer = null;
-                    if (window.ico) window.ico.toast('Помодоро завершен! Время отдыха', 'timer');
-                  }
-                }, 1000);
-                document.getElementById('start-btn').innerText = 'Пауза';
+
+            function addTask() {
+              const text = input.value.trim();
+              if (!text) return;
+              todos.unshift({ id: Date.now(), text: text, done: false });
+              input.value = '';
+              save();
+            }
+
+            function toggleTask(id) {
+              const item = todos.find(t => t.id === id);
+              if (!item) return;
+              item.done = !item.done;
+              if (item.done && window.ico && window.ico.sound) {
+                window.ico.sound('Ping');
+              }
+              save();
+              const allDone = todos.length > 0 && todos.every(t => t.done);
+              if (allDone && window.ico && window.ico.toast) {
+                window.ico.toast('Все задачи выполнены! 🎉', 'checkmark.circle.fill');
               }
             }
-            function reset() {
-              clearInterval(timer);
-              timer = null;
-              sec = 25 * 60;
-              update();
-              document.getElementById('start-btn').innerText = 'Старт';
+
+            function deleteTask(id) {
+              todos = todos.filter(t => t.id !== id);
+              save();
             }
+
+            function clearDone() {
+              const countBefore = todos.length;
+              todos = todos.filter(t => !t.done);
+              if (todos.length !== countBefore) {
+                save();
+                if (window.ico && window.ico.toast) {
+                  window.ico.toast('Выполненные задачи удалены', 'trash');
+                }
+              }
+            }
+
+            function render() {
+              listEl.innerHTML = '';
+              if (todos.length === 0) {
+                listEl.innerHTML = '<div class="empty-msg">Список пуст. Напиши задачу выше, чтобы не забыть! ✍️</div>';
+                counterEl.innerText = '0 задач';
+                return;
+              }
+              const doneCount = todos.filter(t => t.done).length;
+              counterEl.innerText = doneCount + ' из ' + todos.length + ' выполнено';
+
+              todos.forEach(t => {
+                const row = document.createElement('div');
+                row.className = 'item' + (t.done ? ' done' : '');
+                row.innerHTML = `
+                  <div class="checkbox" onclick="toggleTask(${t.id})">
+                    <svg viewBox="0 0 12 10"><polyline points="1.5 5 4.5 8 10.5 2"></polyline></svg>
+                  </div>
+                  <div class="item-text" onclick="toggleTask(${t.id})">${escapeHtml(t.text)}</div>
+                  <button class="del-btn" onclick="deleteTask(${t.id})" title="Удалить">✕</button>
+                `;
+                listEl.appendChild(row);
+              });
+            }
+
+            function escapeHtml(str) {
+              return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            render();
           </script>
         </body>
         </html>

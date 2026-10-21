@@ -88,7 +88,7 @@ public struct WidgetsPanel: View {
                     .frame(height: 28)
                     
                     // Widget Canvas without any distracting footers
-                    WidgetWebView(url: active.htmlURL, reloadToken: reloadToken)
+                    WidgetWebView(widgetId: active.id, url: active.htmlURL, reloadToken: reloadToken)
                         .frame(maxWidth: .infinity)
                         .frame(height: 240)
                         .background(Color.white.opacity(0.04))

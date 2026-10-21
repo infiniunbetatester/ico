@@ -104,6 +104,28 @@ public struct SettingsPanel: View {
                     }
                 }
                 
+                // Section 2.5: Touch Bar Behavior
+                settingsCard(title: "Панель Touch Bar", icon: "menubar.rectangle") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Постоянный Touch Bar (Всегда активен)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+                            Text(state.isTouchBarPersistent
+                                 ? "Тачбар ICO работает постоянно, даже когда остров свёрнут (системный Control Strip справа сохраняется)."
+                                 : "Тачбар активируется только при раскрытии острова или клике на него.")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(Color.white.opacity(0.5))
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $state.isTouchBarPersistent)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
+                
                 // Section 3: Telegram Sync
                 settingsCard(title: "Синхронизация буфера с Telegram", icon: "paperplane.fill") {
                     VStack(alignment: .leading, spacing: 12) {

@@ -60,6 +60,12 @@ ICO brings the dynamic notch and island experience to Mac displays by placing an
 * **Per-App Volume Mixer:** Granular audio gain adjustment for individual running processes without altering the global macOS master volume.
 * **Precision Countdown Timer:** Compact circular countdown with progress badges, ambient sound alerts, and island expansion upon completion.
 
+### Touch Bar Integration
+* **Configurable Presentation Modes:**
+  * **On Focus:** Active only when expanding or interacting with the dynamic island.
+  * **Persistent Touch Bar (Always On):** Keeps the ICO Touch Bar visible continuously, even while multitasking in other applications, while **fully preserving the native macOS Control Strip on the right** (volume, brightness, and Siri remain accessible).
+* **Instant Actions:** Tab switcher (Music, Files, Clipboard, Apps, Widgets), expand/collapse trigger, and pin toggle directly on the Touch Bar.
+
 ### Workspace & Data Management
 * **Temporary File Shelf:** Drag-and-drop landing strip at the upper screen boundary for staging files, images, and folders between spaces and full-screen applications.
 * **Smart Clipboard History:** Persistent clipboard stack with individual item deletion, full history clearing, search filtering, and 1-click **Telegram forwarding** to mobile devices.
@@ -93,14 +99,21 @@ All widgets live locally in your user directory:
 *Supports any system SF Symbols name (e.g., `sparkles`, `cloud.sun.fill`, `timer`, `note.text`, `chart.bar.fill`).*
 
 ### 3. Native JavaScript API (`window.ico`)
-Every widget gets access to the native `window.ico` bridge:
+Every widget gets access to the native `window.ico` bridge. Timers and state **persist across collapse and expand cycles**:
 
 | Method | Description | Example |
 |---|---|---|
-| `window.ico.toast(message, icon)` | Shows a native floating pill toast below the notch | `window.ico.toast('Saved!', 'checkmark')` |
+| `window.ico.toast(message, icon)` | Shows a native floating pill toast below the notch | `window.ico.toast('Done!', 'checkmark')` |
 | `window.ico.copy(text)` | Copies text into the macOS system pasteboard | `window.ico.copy('https://example.com')` |
 | `window.ico.close()` | Collapses the island back to compact mode | `window.ico.close()` |
 | `window.ico.openURL(url)` | Opens an external URL in the default browser | `window.ico.openURL('https://binance.com')` |
+| `window.ico.notify(title, body)` | Native macOS notification banner with sound (works in background!) | `window.ico.notify('Timer', '25 minutes is up!')` |
+| `window.ico.sound(name)` | Plays a macOS system alert sound (`Glass`, `Ping`, `Hero`, `Tink`, `Morse`) | `window.ico.sound('Glass')` |
+| `window.ico.storage.set(key, val)` | Persistent storage per widget ID (never erased on reboot) | `window.ico.storage.set('theme', 'dark')` |
+| `window.ico.storage.get(key, default)` | Reads persisted key value | `const val = window.ico.storage.get('theme', 'dark')` |
+| `window.ico.fetch(url, options)` | Native HTTP request proxy **without CORS restrictions** | `const res = await window.ico.fetch('https://api.binance.com/...')` |
+| `window.ico.onCollapse(fn)` | Notch collapse lifecycle hook (pause heavy canvas/intervals to save CPU) | `window.ico.onCollapse(() => pause())` |
+| `window.ico.onExpand(fn)` | Notch expand lifecycle hook | `window.ico.onExpand(() => resume())` |
 
 ### 4. Minimal Widget Example
 ```html

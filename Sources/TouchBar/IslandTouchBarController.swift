@@ -30,6 +30,9 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
     public func setup() {
         setupControlStripItem()
         buildMainTouchBar()
+        if IslandState.shared.isTouchBarPersistent {
+            updateTouchBarPresentation(isOpen: false)
+        }
     }
     
     // MARK: - System Control Strip Item
@@ -221,7 +224,10 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
         let selPresent = NSSelectorFromString("presentSystemModalTouchBar:systemTrayItemIdentifier:")
         let selDismiss = NSSelectorFromString("dismissSystemModalTouchBar:")
         
-        if isOpen {
+        let state = IslandState.shared
+        let shouldBeActive = state.isTouchBarPersistent || isOpen
+        
+        if shouldBeActive {
             guard !isSystemModalActive else { return }
             
             if NSTouchBar.responds(to: selPresentPlacement) {

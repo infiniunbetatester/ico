@@ -149,6 +149,9 @@ public struct DynamicIslandRootView: View {
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentWidth)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentHeight)
                 .animation(.spring(response: 0.44, dampingFraction: 0.88), value: currentRadius)
+                .onChange(of: state.view) { _, newView in
+                    WidgetManager.shared.notifyWidgets(isExpanded: newView == .open)
+                }
                 .onHover { hovering in
                     handleHover(hovering)
                 }

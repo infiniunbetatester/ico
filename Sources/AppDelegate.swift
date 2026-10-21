@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -14,6 +15,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         NotchWindowController.shared.setup()
         IslandTouchBarController.shared.setup()
         NSApp.touchBar = IslandTouchBarController.shared.touchBar
+        
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         
         UpdateChecker.shared.onUpdateFound = { [weak self] version, _ in
             self?.updateMenuItem?.title = "⚡ Скачать ICO \(version)..."

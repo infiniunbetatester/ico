@@ -118,6 +118,14 @@ public final class IslandState {
         }
     }
     
+    public var isTouchBarPersistent: Bool = (UserDefaults.standard.object(forKey: "ico_touchbar_persistent") as? Bool) ?? false {
+        didSet {
+            UserDefaults.standard.set(isTouchBarPersistent, forKey: "ico_touchbar_persistent")
+            IslandTouchBarController.shared.updateTouchBarPresentation(isOpen: view == .open)
+            showToast(isTouchBarPersistent ? "Постоянный Touch Bar включен" : "Touch Bar: только при фокусе", icon: "menubar.rectangle")
+        }
+    }
+    
     // Dimensions
     public var targetWidth: CGFloat = 180
     public var targetHeight: CGFloat = 24
