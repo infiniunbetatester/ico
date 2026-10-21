@@ -176,13 +176,14 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
     @objc private func tabSegmentChanged(_ sender: NSSegmentedControl) {
         IslandTools.shared.leaveTools()
         let state = IslandState.shared
+        let shouldOpen = state.expandOnTouchBarTap || (state.view == .open)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
             switch sender.selectedSegment {
-            case 0: state.setMode(.music)
-            case 1: state.setMode(.files)
-            case 2: state.setMode(.clipboard)
-            case 3: state.setMode(.apps)
-            case 4: state.setMode(.widgets)
+            case 0: state.setMode(.music, openIsland: shouldOpen)
+            case 1: state.setMode(.files, openIsland: shouldOpen)
+            case 2: state.setMode(.clipboard, openIsland: shouldOpen)
+            case 3: state.setMode(.apps, openIsland: shouldOpen)
+            case 4: state.setMode(.widgets, openIsland: shouldOpen)
             default: break
             }
         }
@@ -570,9 +571,9 @@ public final class IslandTouchBarController: NSObject, NSTouchBarDelegate {
     
     @objc private func musicTitleTapped() {
         let state = IslandState.shared
+        let shouldOpen = state.expandOnTouchBarTap || (state.view == .open)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-            state.setMode(.music)
-            state.setView(.open)
+            state.setMode(.music, openIsland: shouldOpen)
         }
     }
 }

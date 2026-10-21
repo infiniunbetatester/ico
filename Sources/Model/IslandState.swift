@@ -126,6 +126,13 @@ public final class IslandState {
         }
     }
     
+    public var expandOnTouchBarTap: Bool = (UserDefaults.standard.object(forKey: "ico_expand_on_touchbar_tap") as? Bool) ?? false {
+        didSet {
+            UserDefaults.standard.set(expandOnTouchBarTap, forKey: "ico_expand_on_touchbar_tap")
+            showToast(expandOnTouchBarTap ? "Раскрывать челку с тачбара: вкл" : "Раскрывать челку с тачбара: выкл", icon: "menubar.rectangle")
+        }
+    }
+    
     // Dimensions
     public var targetWidth: CGFloat = 180
     public var targetHeight: CGFloat = 24
@@ -207,10 +214,12 @@ public final class IslandState {
         notifyTouchBar()
     }
     
-    public func setMode(_ newMode: IslandMode) {
+    public func setMode(_ newMode: IslandMode, openIsland: Bool = true) {
         self.mode = newMode
-        self.view = .open
-        self.isHoverOpened = false
+        if openIsland {
+            self.view = .open
+            self.isHoverOpened = false
+        }
         updateDimensions()
         if newMode == .apps {
             refreshRunningApps()

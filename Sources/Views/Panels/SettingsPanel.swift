@@ -106,23 +106,46 @@ public struct SettingsPanel: View {
                 
                 // Section 2.5: Touch Bar Behavior
                 settingsCard(title: "Панель Touch Bar", icon: "menubar.rectangle") {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Постоянный Touch Bar (Всегда активен)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.white)
-                            Text(state.isTouchBarPersistent
-                                 ? "Тачбар ICO работает постоянно, даже когда остров свёрнут (системный Control Strip справа сохраняется)."
-                                 : "Тачбар активируется только при раскрытии острова или клике на него.")
-                                .font(.system(size: 10.5))
-                                .foregroundColor(Color.white.opacity(0.5))
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Постоянный Touch Bar (Всегда активен)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+                                Text(state.isTouchBarPersistent
+                                     ? "Тачбар ICO работает постоянно, даже когда остров свёрнут (системный Control Strip справа сохраняется)."
+                                     : "Тачбар активируется только при раскрытии острова или клике на него.")
+                                    .font(.system(size: 10.5))
+                                    .foregroundColor(Color.white.opacity(0.5))
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $state.isTouchBarPersistent)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
                         }
                         
-                        Spacer()
+                        Divider().background(Color.white.opacity(0.08))
                         
-                        Toggle("", isOn: $state.isTouchBarPersistent)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Раскрывать челку при нажатии на Touch Bar")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+                                Text(state.expandOnTouchBarTap
+                                     ? "При переключении вкладок на тачбаре челка на экране автоматически открывается."
+                                     : "Тачбар работает автономно: челка на экране не выскакивает (её можно открыть кнопкой ⌃ слева на тачбаре).")
+                                    .font(.system(size: 10.5))
+                                    .foregroundColor(Color.white.opacity(0.5))
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $state.expandOnTouchBarTap)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                        }
                     }
                 }
                 
